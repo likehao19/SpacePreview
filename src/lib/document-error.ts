@@ -1,4 +1,4 @@
-export function documentError(format: 'PDF' | 'Word' | 'RTF', reason: unknown): string {
+export function documentError(format: 'PDF' | 'OFD' | 'Word' | 'RTF', reason: unknown): string {
   const error = reason as { name?: string; message?: string } | null;
   const detail = error?.message || String(reason ?? '未获得具体错误信息，请重新加载。');
   if (format === 'PDF' && error?.name === 'PasswordException')

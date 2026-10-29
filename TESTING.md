@@ -343,3 +343,18 @@ v0.2.2 改为松开时清空状态并提交请求，窗口内的 Space 关闭同
 v0.2.1 已通过上述自动测试与 8 项生产引擎检查。Windows UI 工具仍报 `failed to write kernel assets`，第 9–11 项连续按键和焦点恢复尚未做自动化实机验收。用户原问题的具体触发分支未被直接捕获；本次修复针对代码中发现的焦点与事件时序缺陷，不宣称完整兼容性矩阵已通过。
 
 本版本尚未测量 100 ms 唤起或 50 MB 空闲内存目标；macOS 编译、Finder 扩展及操作系统级沙箱未完成。
+
+## OFD PR #1 maintainer regression (2026-10-29)
+
+- Added resource-pool tests for shared pages, last-user release, cancellation during load,
+  document close, stale release after reopen, and failed-load retry. All 142 unit tests and
+  the production build passed locally.
+- Browser synthetic OFD: a composite-only image now appears on its first render. After
+  rendering/releasing the composite and three image pages, all four created image URLs
+  were revoked; reopening and closing balanced five created/five revoked URLs.
+- Browser 3,000-page OFD: first page, jump to page 1,500, return to page 1, then close.
+  Nearby image URLs stayed within eight during this fixture run and dropped to zero on
+  close. This is a resource-lifetime assertion, not a measured memory/CPU improvement.
+- The real preview-window hook with mocked native window calls selected OFD page dimensions
+  rather than the default fallback size. Native Mac window interaction and Windows
+  installation were not exercised by this browser regression.

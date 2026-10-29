@@ -56,6 +56,8 @@ import OfficePreview from './OfficePreview';
 import DocumentReader, { ReadingLayout } from './DocumentReader';
 import WordPreview from './WordPreview';
 import PdfPage from './PdfPage';
+import OfdPage, { OFD_PX_PER_MM } from './OfdPage';
+import type { OfdDocument } from '../lib/ofd';
 import { trackReadingPosition } from '../lib/reading-position';
 import ArchivePreview from './ArchivePreview';
 import HtmlPreview from './HtmlPreview';
@@ -201,6 +203,7 @@ export default function Preview({
     return <WordPreview key={file.id} file={file} onText={() => setWordText(true)} />;
   if (kind === 'image') return <ImagePreview file={file} />;
   if (kind === 'pdf') return <PdfPreview file={file} />;
+  if (kind === 'ofd') return <OfdPreview key={file.id} file={file} />;
   if (kind === 'pptx' || kind === 'legacy-ppt')
     return mode === 'text' ? (
       <ParsedPreview file={file} kind={kind} />
@@ -927,6 +930,184 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
                 <Maximize2 size={16} />
               </button>
             )}
+            <button title="放大" onClick={() => setZoom((z) => Math.min(3, z + 0.25))}>
+              <Plus size={16} />
+            </button>
+          </PreviewToolbar>
+        </>
+      )}
+    </div>
+  );
+}
+
+function OfdPreview({ file }: { file: PreviewFile }) {
+  const [doc, setDoc] = useState<OfdDocument | null>(null);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
+  const [page, setPage] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  const [fitZoom, setFitZoom] = useState(1);
+  const scroll = useRef<HTMLDivElement>(null);
+  const currentPage = useRef(1);
+  const adjusting = usePreviewGestures(
+    useCallback(
+      (direction: number) =>
+        setZoom((current) =>
+          Math.max(0.1, Math.min(4, Number((current + direction * 0.1).toFixed(2)))),
+        ),
+      [],
+    ),
+  );
+  const navigate = (number: number) => {
+    scroll.current
+      ?.querySelector(`[data-pdf-page="${number}"]`)
+      ?.scrollIntoView({ block: 'start' });
+    currentPage.current = number;
+    setPage(number);
+  };
+  useFileSearch(
+    useMemo(
+      () =>
+        doc
+          ? {
+              scope: 'OFD 全文',
+              async search(query: string, signal: AbortSignal) {
+                const matches: SearchHit[] = [];
+                for (let index = 0; index < doc.pages.length && index < 1000; index++) {
+                  signal.throwIfAborted();
+                  const text = await doc.pageText(index).catch(() => '');
+                  if (findText(text, query).length)
+                    matches.push({ label: `第 ${index + 1} 页`, goTo: () => navigate(index + 1) });
+                }
+                return matches;
+              },
+            }
+          : null,
+      [doc],
+    ),
+  );
+  useEffect(() => {
+    const controller = new AbortController();
+    let opened: OfdDocument | undefined;
+    setDoc(null);
+    setError('');
+    setPage(1);
+    currentPage.current = 1;
+    void import('../lib/ofd')
+      .then(({ openOfd }) =>
+        openOfd({
+          size: file.size,
+          read: async (offset, length) => {
+            controller.signal.throwIfAborted();
+            return readRange(file, offset, length);
+          },
+          signal: controller.signal,
+          worker: true,
+        }),
+      )
+      .then((document) => {
+        if (controller.signal.aborted) return document.close();
+        opened = document;
+        setDoc(document);
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) setError(documentError('OFD', reason));
+      });
+    return () => {
+      controller.abort();
+      opened?.close();
+    };
+  }, [file, retry]);
+  useEffect(() => {
+    if (!doc || !scroll.current || document.documentElement.dataset.platform !== 'macos') return;
+    // Quick Look on macOS fits the whole page, matching the PDF reader.
+    const scroller = scroll.current;
+    const resize = new ResizeObserver(() =>
+      setFitZoom(
+        Math.max(
+          0.1,
+          Math.min(
+            (scroller.clientWidth - 16) / (doc.box[2] * OFD_PX_PER_MM),
+            (scroller.clientHeight - 16) / (doc.box[3] * OFD_PX_PER_MM),
+          ),
+        ),
+      ),
+    );
+    resize.observe(scroller);
+    return () => resize.disconnect();
+  }, [doc]);
+  useEffect(() => {
+    if (!doc || !scroll.current) return;
+    const scroller = scroll.current;
+    return trackReadingPosition(
+      scroller,
+      Array.from(scroller.querySelectorAll('[data-pdf-page]')).map((element) => ({
+        id: element.getAttribute('data-pdf-page')!,
+        element,
+      })),
+      (id) => {
+        currentPage.current = Number(id) || 1;
+        setPage(currentPage.current);
+      },
+    );
+  }, [doc]);
+  useEffect(() => {
+    scroll.current
+      ?.querySelector(`[data-pdf-page="${currentPage.current}"]`)
+      ?.scrollIntoView({ block: 'start' });
+  }, [zoom, fitZoom]);
+  const count = doc?.pages.length;
+  return (
+    <div
+      className="pdf-preview ofd-preview"
+      data-page-width={doc ? doc.box[2] * OFD_PX_PER_MM : undefined}
+      data-page-height={doc ? doc.box[3] * OFD_PX_PER_MM : undefined}
+    >
+      <PreviewAdjustmentIndicator
+        visible={adjusting}
+        label="缩放"
+        value={`${Math.round(zoom * 100)}%`}
+      />
+      {error ? (
+        <ErrorNotice message={error} onRetry={() => setRetry((value) => value + 1)} />
+      ) : (
+        <>
+          <PreviewToolbar className="content-toolbar pdf-toolbar">
+            <span className="toolbar-summary">
+              OFD 版式文档 · {doc && doc.documents > 1 ? `${doc.documents} 份文档 · ` : ''}
+              {count ?? '…'} 页
+            </span>
+          </PreviewToolbar>
+          <div className="pdf-body">
+            <div className="pdf-scroll" ref={scroll}>
+              {!doc ? (
+                <Loading />
+              ) : (
+                doc.pages.map((item, index) => (
+                  <OfdPage key={item.path} doc={doc} index={index} zoom={zoom * fitZoom} />
+                ))
+              )}
+            </div>
+          </div>
+          <PreviewToolbar className="floating-tools">
+            <button title="上一页" disabled={page <= 1} onClick={() => navigate(page - 1)}>
+              <ChevronLeft size={16} />
+            </button>
+            <span aria-label="OFD 当前页">
+              {page} / {count ?? '…'}
+            </span>
+            <button
+              title="下一页"
+              disabled={!count || page >= count}
+              onClick={() => navigate(page + 1)}
+            >
+              <ChevronRight size={16} />
+            </button>
+            <i />
+            <button title="缩小" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}>
+              <Minus size={16} />
+            </button>
+            <span>{Math.round(zoom * 100)}%</span>
             <button title="放大" onClick={() => setZoom((z) => Math.min(3, z + 0.25))}>
               <Plus size={16} />
             </button>

@@ -3747,3 +3747,11 @@ button:disabled:hover {
   color: var(--muted);
   user-select: none;
 }
+.ofd-canvas {
+  position: absolute;
+  inset: 0;
+}
+.ofd-canvas svg {
+  display: block;
+  user-select: text;
+}

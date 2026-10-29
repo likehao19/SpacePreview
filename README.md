@@ -55,6 +55,7 @@ SpacePreview is a local file previewer. Select a file in Windows Explorer, on th
 ### Read documents
 
 - Continuous PDF scrolling, zoom, text selection and copying, search, and embedded outlines. Scanned PDFs do not have OCR.
+- OFD (GB/T 33190) documents such as Chinese e-invoices: pages render on demand with text, vector graphics, images, templates, annotations and visible seals, plus full-text search. Signatures are not verified.
 - Word pages, images, tables, and heading outlines, with a text-only fallback. Complex layouts may differ; legacy DOC is text-only.
 - Markdown outlines, task lists, tables, and highlighted code, plus RTF, OpenDocument, EPUB, and FB2 reading.
 - Static PowerPoint pages on Windows with locally installed and activated Microsoft PowerPoint; text previews elsewhere. No presentation animations.

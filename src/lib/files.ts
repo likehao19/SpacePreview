@@ -2,6 +2,7 @@ import { sourceLanguage, sourceLanguages } from './source-languages';
 export type PreviewKind =
   | 'image'
   | 'pdf'
+  | 'ofd'
   | 'text'
   | 'markdown'
   | 'video'
@@ -55,6 +56,7 @@ export const engines: { kind: PreviewKind; extensions: string[]; label: string }
     label: '图像',
   },
   { kind: 'pdf', extensions: ['pdf'], label: 'PDF 文档' },
+  { kind: 'ofd', extensions: ['ofd'], label: 'OFD 版式文档' },
   { kind: 'dxf', extensions: ['dxf'], label: 'CAD 图纸' },
   {
     kind: 'model',

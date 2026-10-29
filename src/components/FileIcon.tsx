@@ -76,7 +76,7 @@ export default function FileIcon({
     color = '#367ed5';
     Glyph = FileText;
   }
-  if (kind === 'pdf') {
+  if (kind === 'pdf' || kind === 'ofd') {
     color = '#d25353';
     Glyph = FileText;
   }

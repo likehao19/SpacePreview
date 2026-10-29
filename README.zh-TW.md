@@ -55,6 +55,7 @@ SpacePreview 是一款本地檔案預覽器。在 Windows 資源管理器、桌�
 ### 文檔與閱讀
 
 - PDF 連續滾動、縮放、文字選擇與複製、搜索和內置目錄；掃描圖片 PDF 暫無 OCR。
+- OFD 版式文件（如電子發票）按可見頁繪製文字、向量圖形、圖片、模板、註釋與印章外觀，支援全文搜尋；不校驗簽章有效性。
 - Word 頁面、圖片、表格與標題大綱，可切換文字速覽；復雜排版可能與 Word 不同，舊 DOC 僅文字速覽。
 - Markdown 大綱、任務列表、表格與程式碼高亮，以及 RTF、OpenDocument、EPUB、FB2 內容閱讀。
 - PowerPoint 在 Windows 本地安裝并激活 Microsoft PowerPoint 時生成靜態頁面；其他情況提供文字速覽，不播放演示動畫。
