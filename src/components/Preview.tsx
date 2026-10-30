@@ -1,6 +1,7 @@
-import ReadingWidth from './ReadingWidth';
 import FoldableCode from './FoldableCode';
 import { usePreviewPreferences } from './PreviewPreferences';
+import ReadingWidth from './ReadingWidth';
+import { usePreviewState } from './PreviewSession';
 import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFileSearch, type SearchHit } from './FileSearch';
@@ -110,13 +111,20 @@ export default function Preview({
     'epub',
   ].includes(registered);
   const ambiguous = ['dot', 'mdc'].includes(extension(file.name));
+  const shortcut = extension(file.name) === 'lnk';
   const [detected, setDetected] = useState<PreviewKind | null>(null);
-  const [wordText, setWordText] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
+  const [wordText, setWordText] = usePreviewState('preview.wordText', false);
+  const [showInfo, setShowInfo] = usePreviewState('preview.showInfo', false);
   const { preferences } = usePreviewPreferences();
   const tooLarge = file.size > preferences.maxPreviewMiB * 1024 * 1024;
   useEffect(() => {
-    if (tooLarge || file.directory || mode !== 'auto' || (registered !== 'binary' && !ambiguous))
+    if (
+      tooLarge ||
+      shortcut ||
+      file.directory ||
+      mode !== 'auto' ||
+      (registered !== 'binary' && !ambiguous)
+    )
       return;
     let active = true;
     readBytes(file, 16384)
@@ -142,7 +150,7 @@ export default function Preview({
     return () => {
       active = false;
     };
-  }, [file, mode, registered, ambiguous, tooLarge]);
+  }, [file, mode, registered, ambiguous, tooLarge, shortcut]);
   const kind =
     mode === 'info'
       ? 'binary'
@@ -151,9 +159,13 @@ export default function Preview({
           ? registered
           : 'text'
         : registered === 'binary' || ambiguous
-          ? detected
+          ? shortcut
+            ? 'binary'
+            : detected
           : registered;
   if (file.directory) return <DirectoryPreview key={file.id} file={file} mode={mode} />;
+  if (tooLarge && (mode === 'info' || showInfo || registered === 'binary'))
+    return <BinaryPreview file={file} />;
   if (tooLarge && mode !== 'info' && !showInfo)
     return (
       <UnsupportedPreview
@@ -163,19 +175,7 @@ export default function Preview({
         onInfo={() => setShowInfo(true)}
       />
     );
-  if (tooLarge && showInfo) return <BinaryPreview file={file} />;
   if (!kind) return <Loading />;
-  if (kind === 'binary' && mode === 'auto' && !showInfo)
-    return (
-      <UnsupportedPreview
-        file={file}
-        message={
-          unsupportedFormatHint(file.name) ||
-          '此文件类型暂不支持内容预览。你可以使用默认应用打开，或查看文件信息。'
-        }
-        onInfo={() => setShowInfo(true)}
-      />
-    );
   if (kind === 'html')
     return preferences.html === 'source' ? (
       <ParsedPreview file={file} kind="text" />
@@ -310,11 +310,11 @@ function DesignPreview({ file }: { file: PreviewFile }) {
 
 function ImagePreview({ file }: { file: PreviewFile }) {
   const url = useFileUrl(file);
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
+  const [zoom, setZoom] = usePreviewState('image.zoom', 1);
+  const [rotation, setRotation] = usePreviewState('image.rotation', 0);
   const [size, setSize] = useState('');
   const [error, setError] = useState(false);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [pan, setPan] = usePreviewState('image.pan', { x: 0, y: 0 });
   const fit = useRef(1);
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const reset = () => {
@@ -596,7 +596,7 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
   const [retry, setRetry] = useState(0);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = usePreviewState('pdf.zoom', 1);
   const adjusting = usePreviewGestures(
     useCallback(
       (direction: number) =>
@@ -618,8 +618,8 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
     currentPage.current = number;
     setPage(number);
   };
-  const [panel, setPanel] = useState<'search' | 'outline' | null>(null);
-  const [query, setQuery] = useState('');
+  const [panel, setPanel] = usePreviewState<'search' | 'outline' | null>('pdf.panel', null);
+  const [query, setQuery] = usePreviewState('pdf.query', '');
   const [searching, setSearching] = useState(false);
   const [hits, setHits] = useState<{ page: number; snippet: string }[]>([]);
   const [searchNote, setSearchNote] = useState('');
@@ -1187,13 +1187,16 @@ function ParsedPreview({
   const [retry, setRetry] = useState(0);
   const [binary, setBinary] = useState(false);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = usePreviewState('text.query', '');
   const plainText =
     sourceLanguage(file.name) === 'plaintext' &&
     ['txt', 'text', 'dat', 'license', 'readme'].includes(extension(file.name));
   const { preferences } = usePreviewPreferences();
   const wrap = preferences.wrap;
-  const [encodingOverride, setEncoding] = useState<TextEncoding | null>(null);
+  const [encodingOverride, setEncoding] = usePreviewState<TextEncoding | null>(
+    'text.encoding',
+    null,
+  );
   const encoding = encodingOverride ?? preferences.encoding;
   const continuousCode = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -1486,8 +1489,13 @@ function ParsedPreview({
           </label>
         </div>
       </PreviewToolbar>
-      <div className={`code-scroll ${wrap ? 'wrap' : ''}`}>
-        <ReadingWidth kind={plainText ? 'text' : 'code'}>
+      <ReadingWidth
+        kind="code"
+        gutterWidth={
+          continuous && wrap ? 0 : Math.max(36, String(result.lines ?? 1).length * 8 + 12)
+        }
+      >
+        <div className={`code-scroll ${wrap ? 'wrap' : ''}`}>
           {continuous ? (
             <pre className="continuous-pre">
               {!wrap && (
@@ -1509,14 +1517,14 @@ function ParsedPreview({
               query={query}
             />
           )}
-        </ReadingWidth>
-      </div>
+        </div>
+      </ReadingWidth>
     </div>
   );
 }
 
 function BookPreview({ chapters }: { chapters: NonNullable<WorkerResult['chapters']> }) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = usePreviewState('book.chapter', 0);
   useFileSearch(
     useMemo(
       () => ({

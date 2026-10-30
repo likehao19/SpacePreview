@@ -8,10 +8,8 @@ it('restores shared reading preferences from storage', () => {
     encoding: 'gb18030',
     html: 'web',
     maxPreviewMiB: 256,
-    readingWidth: 860,
-    textWidth: 0,
-    codeWidth: 0,
     tabs: false,
+    readingWidth: 860,
   };
   expect(parsePreviewPreferences(JSON.stringify(preferences))).toEqual(preferences);
 });
@@ -34,12 +32,15 @@ it('defaults to 256 MiB and rejects unsafe limits', () => {
       256,
     );
 });
-
-it('restores width and tab settings without accepting invalid persisted sizes', () => {
-  const p = parsePreviewPreferences(
-    '{"readingWidth":1024,"textWidth":640,"codeWidth":1280,"tabs":true}',
-  );
-  expect([p.readingWidth, p.textWidth, p.codeWidth, p.tabs]).toEqual([1024, 640, 1280, true]);
-  for (const width of [-1, 1, 2000, '860', null])
-    expect(parsePreviewPreferences(JSON.stringify({ readingWidth: width })).readingWidth).toBe(860);
+it('restores bounded reading widths and only enables tabs explicitly', () => {
+  expect(parsePreviewPreferences('{"tabs":true,"readingWidth":1080}')).toMatchObject({
+    tabs: true,
+    readingWidth: 1080,
+  });
+  for (const readingWidth of [0, 359, 2401, 860.5, '1080', null]) {
+    expect(parsePreviewPreferences(JSON.stringify({ tabs: 'true', readingWidth }))).toMatchObject({
+      tabs: false,
+      readingWidth: 860,
+    });
+  }
 });

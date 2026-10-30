@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useReducer, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -31,8 +31,8 @@ import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
 import PreviewPreferencesSettings, { usePreviewPreferences } from './components/PreviewPreferences';
-import { previewTabs, emptyTabs, tabKey } from './lib/preview-tabs';
-import TabReadingPosition, { type ScrollPositions } from './components/TabReadingPosition';
+import PreviewSession from './components/PreviewSession';
+import { usePreviewTabs } from './lib/use-preview-tabs';
 import { useAppUpdate } from './lib/use-app-update';
 import { version } from '../package.json';
 import { PreviewMenuTarget } from './components/PreviewToolbar';
@@ -138,26 +138,18 @@ const settingsPages = [
 export default function App() {
   const updater = useAppUpdate();
   const { preferences } = usePreviewPreferences();
-  const tabsEnabled = useRef(preferences.tabs);
-  tabsEnabled.current = preferences.tabs;
-  const [tabState, dispatchTab] = useReducer(previewTabs, emptyTabs);
-  const activeTab = tabState.items.find((tab) => tabKey(tab.file) === tabState.active);
-  const files = activeTab ? [activeTab.file] : [];
-  const mode = activeTab?.mode ?? 'auto';
-  const setMode = useCallback(
-    (
-      value:
-        'auto' | 'text' | 'info' | ((mode: 'auto' | 'text' | 'info') => 'auto' | 'text' | 'info'),
-    ) => dispatchTab({ type: 'mode', value }),
-    [],
-  );
-  const setFiles = useCallback((files: PreviewFile[]) => {
-    if (!files.length) dispatchTab({ type: 'clear' });
-  }, []);
-  const positions = useRef<ScrollPositions>(new Map());
-  const sourceEpoch = useRef(0);
-  const hasTabs = useRef(false);
-  hasTabs.current = tabState.items.length > 0;
+  const tabPreview = usePreviewTabs(preferences.tabs);
+  const tabCount = useRef(0);
+  tabCount.current = tabPreview.tabs.length;
+  const {
+    files,
+    mode,
+    setMode,
+    archiveStack,
+    setArchiveStack,
+    openFiles,
+    clear: clearTabs,
+  } = tabPreview;
   const [settings, setSettings] = useState(savedSettings);
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   const macos = agent?.platform === 'macos' || /Mac/i.test(navigator.platform);
@@ -182,20 +174,21 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [previewError, setPreviewError] = useState('');
   const [opening, setOpening] = useState(false);
+  const [suspended, setSuspended] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [menuTarget, setMenuTarget] = useState<HTMLDivElement | null>(null);
-  const archiveStack = activeTab?.archive ?? [];
-  const setArchiveStack = useCallback(
-    (value: PreviewFile[] | ((files: PreviewFile[]) => PreviewFile[])) =>
-      dispatchTab({ type: 'archive', value }),
-    [],
-  );
   const input = useRef<HTMLInputElement>(null);
   const request = useRef(0);
+  const initialPaths = useRef<Promise<{
+    paths: string[];
+    text: boolean;
+    fileManager?: boolean;
+  }> | null>(null);
+  const initialHandled = useRef(false);
   const choosing = useRef(false);
   const navigation = useRef<{ busy: boolean } | null>(null);
+  const sourceEpoch = useRef(0);
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
-
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
   useEffect(() => {
@@ -205,11 +198,11 @@ export default function App() {
     }
   }, [settingsOpen, file?.id]);
   usePreviewWindow(
-    desktop && macos && !opening,
+    desktop && macos && !opening && !suspended,
     file ? `${file.id}:${mode}:${request.current}` : '',
     settingsOpen,
     mode === 'auto' && file && !file.directory ? detectKind(file.name) : 'text',
-    tabState.items.length > 1,
+    tabPreview.tabs.length > 1,
   );
   useEffect(() => {
     if (!desktop || (file && !settingsOpen)) return;
@@ -337,25 +330,20 @@ export default function App() {
     (
       incoming: PreviewFile[],
       initialMode: 'auto' | 'text' = 'auto',
-      source: number | null = null,
       replace = false,
+      source: number | null = null,
     ) => {
       if (!incoming.length) return;
-      dispatchTab({
-        type: 'open',
-        file: incoming[0],
-        mode: initialMode,
-        source,
-        keep: tabsEnabled.current,
-        replace,
-      });
+      request.current++;
+      spaceAction.current = null;
+      setOpening(false);
+      setSuspended(false);
+      openFiles(incoming, initialMode, replace, source);
       setPreviewError('');
-      setArchiveStack([]);
-
       setSettingsOpen(false);
       setMenuOpen(false);
     },
-    [],
+    [openFiles],
   );
   const loadPaths = useCallback(
     async (paths: string[], forceText = false, navigating = false, fromFileManager = false) => {
@@ -367,24 +355,26 @@ export default function App() {
       const version = ++request.current;
       setOpening(true);
       try {
-        const incoming = await Promise.all(paths.slice(0, 1).map(inspectPath));
+        const incoming = await Promise.all(
+          (preferences.tabs && !navigating ? paths : paths.slice(0, 1)).map(inspectPath),
+        );
         if (version !== request.current) return;
         loadFiles(
           incoming,
           forceText ? 'text' : 'auto',
-          fromFileManager || navigating ? sourceEpoch.current : null,
           navigating,
+          fromFileManager || navigating ? sourceEpoch.current : null,
         );
         trace('loaded');
       } catch (e) {
         trace('load-error');
         if (version === request.current) {
-          if (navigating || (tabsEnabled.current && hasTabs.current)) {
+          if (navigating || (preferences.tabs && tabCount.current)) {
             navigation.current = null;
-            setToast(`文件载入失败：${String(e)}`);
+            setToast(`切换文件失败：${String(e)}`);
             return;
           }
-          setFiles([]);
+          clearTabs();
           setArchiveStack([]);
           setSettingsOpen(false);
           setPreviewError(String(e));
@@ -397,12 +387,12 @@ export default function App() {
         if (version === request.current) setOpening(false);
       }
     },
-    [loadFiles, macos],
+    [loadFiles, macos, preferences.tabs, clearTabs],
   );
 
   const navigateFile = async (direction: -1 | 1) => {
     if (!desktop || !file?.path || archiveStack.length || opening) return;
-    if (!activeTab?.source || activeTab.source !== sourceEpoch.current) {
+    if (!tabPreview.source || tabPreview.source !== sourceEpoch.current) {
       setToast(
         `请在 ${macos ? 'Finder 或 QSpace Pro' : fileManager} 中重新选中文件后按预览快捷键，以跟随当前视图切换。`,
       );
@@ -449,57 +439,44 @@ export default function App() {
     trace('close');
     navigation.current = null;
     request.current++;
-    setFiles([]);
-    positions.current.clear();
+    clearTabs();
     setPreviewError('');
     setArchiveStack([]);
 
     setOpening(false);
+    setSuspended(false);
     if (desktop) void invoke('hide_preview').catch((error) => setToast(String(error)));
-  }, []);
-  const selectTab = (key: string) => {
-    if (key === tabState.active) return;
+  }, [clearTabs, setArchiveStack]);
+  const activateTab = (id: string) => {
     request.current++;
     navigation.current = null;
+    spaceAction.current = null;
     setOpening(false);
-    setMenuOpen(false);
     setPreviewError('');
+    setMenuOpen(false);
     if (desktop) void invoke('cancel_file_navigation').catch(() => {});
-    dispatchTab({ type: 'select', key });
+    tabPreview.select(id);
   };
-  const closeTab = (key = tabState.active) => {
-    if (!key) {
+  const closeTab = (id: string) => {
+    if (tabPreview.tabs.length === 1) {
       closePreview();
       return;
     }
-    positions.current.delete(key);
-    if (tabState.items.length <= 1) {
-      closePreview();
-      return;
-    }
-    if (key === tabState.active) {
+    if (id === tabPreview.activeId) {
       request.current++;
       navigation.current = null;
+      spaceAction.current = null;
       setOpening(false);
       setMenuOpen(false);
       setPreviewError('');
       if (desktop) void invoke('cancel_file_navigation').catch(() => {});
     }
-    dispatchTab({ type: 'close', key });
+    tabPreview.close(id);
   };
-  useEffect(() => {
-    const keys = new Set(tabState.items.map((tab) => tabKey(tab.file)));
-    for (const key of positions.current.keys()) if (!keys.has(key)) positions.current.delete(key);
-    if (!preferences.tabs && tabState.items.length > 1 && activeTab) {
-      dispatchTab({
-        type: 'open',
-        file: activeTab.file,
-        mode: activeTab.mode,
-        source: activeTab.source,
-        keep: false,
-      });
-    }
-  }, [preferences.tabs, tabState, activeTab]);
+  const closeCurrent = () => {
+    if (preferences.tabs && tabPreview.activeId) closeTab(tabPreview.activeId);
+    else closePreview();
+  };
   const openFile = useCallback(async () => {
     if (!file) return;
     if (!file.path) {
@@ -556,8 +533,12 @@ export default function App() {
     );
     void register(
       listen<string>('agent-selection-error', (event) => {
+        if (preferences.tabs && tabCount.current) {
+          setToast(event.payload);
+          return;
+        }
         request.current++;
-        setFiles([]);
+        clearTabs();
         setArchiveStack([]);
         setSettingsOpen(false);
         setOpening(false);
@@ -570,10 +551,11 @@ export default function App() {
         setSettingsOpen(false);
         setPreviewError('');
         request.current++;
-        setFiles([]);
+        clearTabs();
         setArchiveStack([]);
 
         setOpening(false);
+        setSuspended(false);
       }),
     );
     void register(
@@ -583,11 +565,18 @@ export default function App() {
       }),
     );
     void filesReady
-      .then(() =>
-        invoke<{ paths: string[]; text: boolean; fileManager?: boolean }>('initial_paths'),
+      .then(
+        () =>
+          (initialPaths.current ??= invoke<{
+            paths: string[];
+            text: boolean;
+            fileManager?: boolean;
+          }>('initial_paths')),
       )
       .then((initial) => {
-        if (!disposed && initial.paths.length)
+        if (disposed || initialHandled.current) return;
+        initialHandled.current = true;
+        if (initial.paths.length)
           void loadPaths(initial.paths, initial.text, false, initial.fileManager === true);
       })
       .catch((error) => {
@@ -604,6 +593,10 @@ export default function App() {
     let stop: (() => void) | undefined;
     void getCurrentWindow()
       .onFocusChanged((e) => {
+        if (e.payload && !disposed) {
+          setSuspended(false);
+          return;
+        }
         if (!e.payload && !disposed && !choosing.current) {
           const version = request.current;
           // A queued blur from hiding the previous preview must not close a new one.
@@ -612,7 +605,14 @@ export default function App() {
             .then((focused) => {
               if (!focused && !disposed && !choosing.current && version === request.current) {
                 trace('blur-close');
-                closePreview();
+                if (preferences.tabs) {
+                  request.current++;
+                  navigation.current = null;
+                  spaceAction.current = null;
+                  setOpening(false);
+                  setSuspended(true);
+                  void invoke('hide_preview').catch((error) => setToast(String(error)));
+                } else closePreview();
               }
             })
             .catch(() => {});
@@ -626,7 +626,7 @@ export default function App() {
       disposed = true;
       stop?.();
     };
-  }, [settings.closeOnBlur, settingsOpen, file, closePreview]);
+  }, [settings.closeOnBlur, settingsOpen, file, closePreview, preferences.tabs]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -712,7 +712,7 @@ export default function App() {
       if (event.key === 'Escape') {
         event.preventDefault();
         if (settingsOpen) setSettingsOpen(false);
-        else closeTab();
+        else closePreview();
       }
       if (
         !(desktop && macos) &&
@@ -735,13 +735,13 @@ export default function App() {
         return;
       }
       if (!file) return;
-      const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
       if (
-        plainKey &&
-        event.key === 'ArrowLeft' &&
-        archiveStack.length &&
-        !(event.target instanceof HTMLElement && event.target.closest('[role="tablist"]'))
-      ) {
+        event.target instanceof Element &&
+        event.target.closest('[role="tablist"], [role="separator"]')
+      )
+        return;
+      const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
+      if (plainKey && event.key === 'ArrowLeft' && archiveStack.length) {
         event.preventDefault();
         setArchiveStack((stack) => stack.slice(0, -1));
       }
@@ -780,7 +780,7 @@ export default function App() {
       event.stopPropagation();
       // Keep focus unchanged until the native hook has observed the release.
       if (pending.action === 'text') setMode((m) => (m === 'text' ? 'auto' : 'text'));
-      else if (pending.action === 'close') closeTab();
+      else if (pending.action === 'close') closeCurrent();
       else void choose();
     };
     window.addEventListener('keydown', keydown, true);
@@ -843,7 +843,7 @@ export default function App() {
                 title="返回欢迎页"
                 onClick={() => {
                   request.current++;
-                  setFiles([]);
+                  clearTabs();
                   setArchiveStack([]);
                 }}
               >
@@ -1036,87 +1036,87 @@ export default function App() {
         </div>
       </header>
 
-      {preferences.tabs && tabState.items.length > 0 && !settingsOpen && (
+      {preferences.tabs && tabPreview.tabs.length > 1 && !settingsOpen && !suspended && (
         <div
-          className="file-tabs"
+          className="preview-tabs"
           role="tablist"
           aria-label="文件标签页"
           onKeyDown={(event) => {
-            if (
-              !(event.target instanceof HTMLElement) ||
-              event.target.getAttribute('role') !== 'tab' ||
-              !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.code)
-            )
-              return;
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
             event.stopPropagation();
-            const index = tabState.items.findIndex((tab) => tabKey(tab.file) === tabState.active);
+            const focusedTab =
+              event.target instanceof Element
+                ? event.target.closest('.preview-tab')?.querySelector('[role="tab"]')
+                : null;
+            const focusedIndex = [
+              ...event.currentTarget.querySelectorAll('[role="tab"]'),
+            ].findIndex((node) => node === focusedTab);
+            const index =
+              focusedIndex >= 0
+                ? focusedIndex
+                : tabPreview.tabs.findIndex((tab) => tab.id === tabPreview.activeId);
             const next =
-              event.code === 'Home'
+              event.key === 'Home'
                 ? 0
-                : event.code === 'End'
-                  ? tabState.items.length - 1
-                  : (index + (event.code === 'ArrowRight' ? 1 : -1) + tabState.items.length) %
-                    tabState.items.length;
-            selectTab(tabKey(tabState.items[next].file));
-            const target =
-              event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
-            requestAnimationFrame(() => {
-              target?.focus();
-              target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-            });
+                : event.key === 'End'
+                  ? tabPreview.tabs.length - 1
+                  : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabPreview.tabs.length) %
+                    tabPreview.tabs.length;
+            activateTab(tabPreview.tabs[next].id);
+            const container = event.currentTarget;
+            requestAnimationFrame(() =>
+              container.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus(),
+            );
           }}
         >
-          {tabState.items.map((tab) => {
-            const key = tabKey(tab.file);
-            return (
-              <div key={key} className={`file-tab ${key === tabState.active ? 'selected' : ''}`}>
-                <button
-                  role="tab"
-                  aria-selected={key === tabState.active}
-                  tabIndex={key === tabState.active ? 0 : -1}
-                  title={tab.file.path || tab.file.name}
-                  onClick={() => selectTab(key)}
-                >
-                  {tab.file.name}
-                </button>
-                <button
-                  aria-label={`关闭标签 ${tab.file.name}`}
-                  title="关闭标签"
-                  onClick={() => closeTab(key)}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            );
-          })}
+          {tabPreview.tabs.map((tab) => (
+            <div
+              className={`preview-tab ${tab.id === tabPreview.activeId ? 'active' : ''}`}
+              key={tab.id}
+            >
+              <button
+                role="tab"
+                aria-selected={tab.id === tabPreview.activeId}
+                aria-controls="preview-panel"
+                tabIndex={tab.id === tabPreview.activeId ? 0 : -1}
+                title={tab.file.path ?? tab.file.name}
+                onClick={() => activateTab(tab.id)}
+              >
+                {tab.file.name}
+              </button>
+              <button
+                className="tab-close"
+                aria-label={`关闭标签 ${tab.file.name}`}
+                onClick={() => closeTab(tab.id)}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
+
       {previewError ? (
         <main className="preview-container">
           <UnsupportedPreview message={previewError} />
         </main>
-      ) : file ? (
+      ) : file && !suspended ? (
         <main
+          key={`${tabPreview.activeId}:${files[0]?.modified}`}
+          id="preview-panel"
+          role={preferences.tabs ? 'tabpanel' : undefined}
+          aria-label={preferences.tabs ? files[0].name : undefined}
           className={`preview-container kind-${mode === 'auto' ? detectKind(file.name) : mode}`}
         >
-          <TabReadingPosition
-            key={tabState.active!}
-            identity={tabState.active!}
-            positions={positions.current}
-            remember={!archiveStack.length}
-          >
-            {[files[0], ...archiveStack].map((item, depth) => (
-              <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
-                <PreviewMenuTarget.Provider
-                  value={depth === archiveStack.length ? menuTarget : null}
+          {[files[0], ...archiveStack].map((item, depth) => (
+            <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
+              <PreviewMenuTarget.Provider value={depth === archiveStack.length ? menuTarget : null}>
+                <TextAppearanceProvider
+                  active={depth === archiveStack.length && !settingsOpen && !recording}
                 >
-                  <TextAppearanceProvider
-                    active={depth === archiveStack.length && !settingsOpen && !recording}
-                  >
-                    <FileSearch
-                      active={depth === archiveStack.length && !settingsOpen && !recording}
-                    >
+                  <FileSearch active={depth === archiveStack.length && !settingsOpen && !recording}>
+                    <PreviewSession cache={tabPreview.view(item.id)}>
                       <Preview
                         key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
                         file={item}
@@ -1127,12 +1127,12 @@ export default function App() {
                           setMode('auto');
                         }}
                       />
-                    </FileSearch>
-                  </TextAppearanceProvider>
-                </PreviewMenuTarget.Provider>
-              </div>
-            ))}
-          </TabReadingPosition>
+                    </PreviewSession>
+                  </FileSearch>
+                </TextAppearanceProvider>
+              </PreviewMenuTarget.Provider>
+            </div>
+          ))}
         </main>
       ) : null}
       {macos && !file && !previewError && !settingsOpen && (
@@ -1547,9 +1547,9 @@ export default function App() {
                     ))}
                   </div>
                   <p className="shortcut-help">
-                    跟随 Finder / 资源管理器当前视图切换并同步选中项，保留当前排序和搜索结果。
-                    请从文件管理器唤起预览；原窗口或标签页改变后需重新选中文件。 文档可用滚轮或 Page
-                    Up / Down 浏览，输入框和目录树保留方向键操作。
+                    跟随 Finder /
+                    资源管理器当前视图切换并同步选中项，保留当前排序和搜索结果。请从文件管理器唤起预览；原窗口或标签页改变后需重新选中文件。文档可用滚轮或
+                    Page Up / Down 浏览，输入框和目录树保留方向键操作。
                   </p>
                   <h3>常用操作</h3>
                   <div className="shortcuts">

@@ -44,6 +44,25 @@ export default function PreviewPreferencesSettings() {
   return (
     <>
       <p className="page-intro">设置自动保存，并应用到所有文件。</p>
+      <h3>多文件预览</h3>
+      <div className="preference-group">
+        <div className="preference-row">
+          <span>使用文件标签页</span>
+          <button
+            className={`switch ${preferences.tabs ? 'on' : ''}`}
+            role="switch"
+            aria-label="使用文件标签页"
+            aria-checked={preferences.tabs}
+            onClick={() => update('tabs', !preferences.tabs)}
+          >
+            <span />
+          </button>
+        </div>
+      </div>
+      <p className="shortcut-help">
+        开启后新文件进入新标签；空格关闭当前标签，Esc
+        或窗口关闭按钮关闭全部。启用失焦关闭时仅隐藏窗口并保留标签。切换标签或隐藏窗口会释放旧预览任务，返回时重新加载并恢复阅读位置。
+      </p>
       <h3>资源与性能</h3>
       <div className="preference-group">
         <label className="preference-row">
@@ -77,6 +96,23 @@ export default function PreviewPreferencesSettings() {
             <option value="sans">现代字体</option>
             <option value="serif">书籍字体</option>
             <option value="mono">等宽字体</option>
+          </select>
+        </label>
+        <label className="preference-row">
+          <span>文档阅读宽度</span>
+          <select
+            aria-label="默认阅读宽度"
+            value={preferences.readingWidth}
+            onChange={(e) => update('readingWidth', Number(e.target.value))}
+          >
+            {![640, 860, 1080, 1440, 2400].includes(preferences.readingWidth) && (
+              <option value={preferences.readingWidth}>{preferences.readingWidth} px</option>
+            )}
+            <option value={640}>紧凑 · 640 px</option>
+            <option value={860}>默认 · 860 px</option>
+            <option value={1080}>宽松 · 1080 px</option>
+            <option value={1440}>宽幅 · 1440 px</option>
+            <option value={2400}>适应窗口</option>
           </select>
         </label>
         <label className="preference-row">
@@ -123,52 +159,6 @@ export default function PreviewPreferencesSettings() {
       <p className="shortcut-help">
         适用于纯文本、代码和阅读视图。Word、PDF
         等保留文档原有字体。个别文件出现乱码时，可在该文件的更多菜单临时切换编码。
-      </p>
-      <h3>内容宽度</h3>
-      <div className="preference-group">
-        {(['readingWidth', 'textWidth', 'codeWidth'] as const).map((key) => (
-          <label className="preference-row" key={key}>
-            <span>
-              {key === 'readingWidth' ? '阅读视图' : key === 'textWidth' ? '纯文本' : '代码'}
-            </span>
-            <select
-              aria-label={`${key === 'readingWidth' ? '正文' : key === 'textWidth' ? '文本' : '代码'}宽度`}
-              value={preferences[key]}
-              onChange={(event) => update(key, Number(event.target.value))}
-            >
-              {[...new Set([0, 640, 860, 1024, 1280, preferences[key]])]
-                .sort((a, b) => a - b)
-                .map((value) => (
-                  <option key={value} value={value}>
-                    {value ? `${value} px` : '填满可用宽度'}
-                  </option>
-                ))}
-            </select>
-          </label>
-        ))}
-      </div>
-      <p className="shortcut-help">
-        也可拖动正文两侧调整宽度，双击恢复默认。内容区域居中，文字保持左对齐；PDF 和 Word
-        原始页面不受影响。
-      </p>
-      <h3>多文件预览</h3>
-      <div className="preference-group">
-        <div className="preference-row">
-          <span>使用文件标签页</span>
-          <button
-            className={`switch ${preferences.tabs ? 'on' : ''}`}
-            role="switch"
-            aria-label="使用文件标签页"
-            aria-checked={preferences.tabs}
-            onClick={() => update('tabs', !preferences.tabs)}
-          >
-            <span />
-          </button>
-        </div>
-      </div>
-      <p className="shortcut-help">
-        开启后，新文件在标签页中打开。仅加载当前标签；Space 或 Esc
-        关闭当前标签，窗口关闭按钮关闭全部预览。
       </p>
       <h3>HTML 文件</h3>
       <div className="preference-group">

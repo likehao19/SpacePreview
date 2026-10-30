@@ -1,98 +1,64 @@
 import type { PreviewFile } from './files';
+import type { SessionCache } from '../components/PreviewSession';
+
 export type PreviewMode = 'auto' | 'text' | 'info';
-export type PreviewTab = {
+export interface PreviewTab {
+  id: string;
   file: PreviewFile;
   mode: PreviewMode;
-  archive: PreviewFile[];
-  source: number | null;
-};
-export type TabState = { items: PreviewTab[]; active: string | null };
-export const tabKey = (file: PreviewFile) => file.path || file.id;
-export const emptyTabs: TabState = { items: [], active: null };
-export type TabAction =
-  | {
-      type: 'open';
-      file: PreviewFile;
-      mode: PreviewMode;
-      source: number | null;
-      keep: boolean;
-      replace?: boolean;
+  source?: number | null;
+  archiveStack: PreviewFile[];
+  views: Map<string, SessionCache>;
+}
+export interface PreviewTabs {
+  tabs: PreviewTab[];
+  active: string | null;
+}
+export function tabIdentity(file: PreviewFile): string {
+  return file.path ?? (file.blob ? `${file.name}:${file.size}:${file.modified}` : file.id);
+}
+export function openPreviewTabs(
+  current: PreviewTabs,
+  files: PreviewFile[],
+  mode: PreviewMode,
+  multiple: boolean,
+  replace = false,
+  source: number | null = null,
+): PreviewTabs {
+  if (!files.length) return current;
+  const tabs = multiple ? [...current.tabs] : [];
+  let active = current.active;
+  for (const file of multiple && !replace ? files : files.slice(0, 1)) {
+    const id = tabIdentity(file);
+    const existing = tabs.find((tab) => tab.id === id);
+    if (!existing) {
+      if (replace) {
+        const index = tabs.findIndex((tab) => tab.id === active);
+        if (index >= 0) {
+          tabs.splice(index, 1, { id, file, mode, source, archiveStack: [], views: new Map() });
+          active = id;
+          continue;
+        }
+      }
+      tabs.push({ id, file, mode, source, archiveStack: [], views: new Map() });
+    } else if (existing.file.modified !== file.modified || existing.file.size !== file.size) {
+      tabs[tabs.indexOf(existing)] = { id, file, mode, source, archiveStack: [], views: new Map() };
+    } else if (mode === 'text') {
+      tabs[tabs.indexOf(existing)] = { ...existing, mode, source };
+    } else {
+      tabs[tabs.indexOf(existing)] = { ...existing, source };
     }
-  | { type: 'select'; key: string }
-  | { type: 'close'; key: string }
-  | { type: 'clear' }
-  | { type: 'mode'; value: PreviewMode | ((mode: PreviewMode) => PreviewMode) }
-  | { type: 'archive'; value: PreviewFile[] | ((files: PreviewFile[]) => PreviewFile[]) };
-export function previewTabs(state: TabState, action: TabAction): TabState {
-  if (action.type === 'clear') return emptyTabs;
-  if (action.type === 'open') {
-    const key = tabKey(action.file);
-    const existing = state.items.find((item) => tabKey(item.file) === key);
-    const tab: PreviewTab = {
-      file:
-        existing &&
-        existing.file.size === action.file.size &&
-        existing.file.modified === action.file.modified
-          ? existing.file
-          : action.file,
-      mode: action.mode,
-      source: action.source,
-      archive: existing?.archive ?? [],
-    };
-    let items = action.keep ? state.items : [];
-    if (action.replace)
-      items = items.filter(
-        (item) => tabKey(item.file) !== state.active || tabKey(item.file) === key,
-      );
-    items =
-      existing && action.keep
-        ? items.map((item) =>
-            tabKey(item.file) === key
-              ? { ...tab, mode: action.mode === 'text' ? 'text' : existing.mode }
-              : item,
-          )
-        : [...items, tab];
-    // Archive entries may contain large decompressed Blobs. Release them when leaving a tab.
-    items = items.map((item) => (tabKey(item.file) === key ? item : { ...item, archive: [] }));
-    return { items, active: key };
+    active = id;
   }
-  if (action.type === 'select') {
-    if (!state.items.some((item) => tabKey(item.file) === action.key)) return state;
-    return {
-      active: action.key,
-      items: state.items.map((item) =>
-        tabKey(item.file) === action.key ? item : { ...item, archive: [] },
-      ),
-    };
-  }
-  if (action.type === 'close') {
-    const index = state.items.findIndex((item) => tabKey(item.file) === action.key);
-    const items = state.items.filter((item) => tabKey(item.file) !== action.key);
-    return {
-      items,
-      active:
-        state.active === action.key
-          ? items[Math.min(index, items.length - 1)]
-            ? tabKey(items[Math.min(index, items.length - 1)].file)
-            : null
-          : state.active,
-    };
-  }
+  return { tabs, active };
+}
+export function closePreviewTab(current: PreviewTabs, id: string): PreviewTabs {
+  const index = current.tabs.findIndex((tab) => tab.id === id);
+  if (index < 0) return current;
+  const tabs = current.tabs.filter((tab) => tab.id !== id);
   return {
-    ...state,
-    items: state.items.map((item) =>
-      tabKey(item.file) !== state.active
-        ? item
-        : action.type === 'mode'
-          ? {
-              ...item,
-              mode: typeof action.value === 'function' ? action.value(item.mode) : action.value,
-            }
-          : {
-              ...item,
-              archive:
-                typeof action.value === 'function' ? action.value(item.archive) : action.value,
-            },
-    ),
+    tabs,
+    active:
+      current.active === id ? (tabs[Math.min(index, tabs.length - 1)]?.id ?? null) : current.active,
   };
 }

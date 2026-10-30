@@ -1,10 +1,11 @@
-import ReadingWidth from './ReadingWidth';
 import PreviewToolbar from './PreviewToolbar';
 import { TextAppearanceControls } from './TextAppearance';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackReadingPosition } from '../lib/reading-position';
 import DOMPurify from 'dompurify';
 import { List, ChevronLeft, Search, X } from 'lucide-react';
+import ReadingWidth from './ReadingWidth';
+import { usePreviewState } from './PreviewSession';
 
 export interface OutlineItem {
   id: string;
@@ -26,10 +27,10 @@ export function ReadingLayout({
   activeId?: string;
   loading?: boolean;
 }) {
-  const [open, setOpen] = useState(() => !/Mac/i.test(navigator.platform));
+  const [open, setOpen] = usePreviewState('outline.open', () => !/Mac/i.test(navigator.platform));
   const [active, setActive] = useState('');
-  const [width, setWidth] = useState(220);
-  const [filter, setFilter] = useState('');
+  const [width, setWidth] = usePreviewState('outline.width', 220);
+  const [filter, setFilter] = usePreviewState('outline.filter', '');
   const nav = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; width: number } | null>(null);
   const current = activeId ?? active;
@@ -250,10 +251,10 @@ export default function DocumentReader({
       }
       toolbar={toolbar}
     >
-      <div className="document-scroll" ref={scroll}>
-        <TextAppearanceControls />
-        {note && <div className="document-note">{note}</div>}
-        <ReadingWidth kind="reading">
+      <ReadingWidth>
+        <div className="document-scroll" ref={scroll}>
+          <TextAppearanceControls />
+          {note && <div className="document-note">{note}</div>}
           <article
             className="document-paper prose"
             style={{
@@ -273,8 +274,8 @@ export default function DocumentReader({
             }}
             dangerouslySetInnerHTML={{ __html: document.html }}
           />
-        </ReadingWidth>
-      </div>
+        </div>
+      </ReadingWidth>
     </ReadingLayout>
   );
 }

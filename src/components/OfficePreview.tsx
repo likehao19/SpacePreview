@@ -4,6 +4,7 @@ import { useFileSearch, type SearchHit } from './FileSearch';
 import { findText } from '../lib/find';
 import { ChevronLeft, ChevronRight, Table2 } from 'lucide-react';
 import type { WorkerResult } from '../lib/worker-types';
+import { usePreviewState } from './PreviewSession';
 import { TextAppearanceControls, useTextAppearance } from './TextAppearance';
 
 function columnName(index: number): string {
@@ -15,7 +16,7 @@ function columnName(index: number): string {
 export default function OfficePreview({ result }: { result: WorkerResult }) {
   const { size } = useTextAppearance();
   const rowHeight = Math.max(32, Math.ceil(size * 1.5 + 8));
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = usePreviewState('office.selected', 0);
   const [start, setStart] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
   const previousHeight = useRef(rowHeight);

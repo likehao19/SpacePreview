@@ -1,129 +1,123 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { usePreviewPreferences } from './PreviewPreferences';
-import { clampReadingWidth, defaultReadingWidths } from '../lib/reading-width';
+import { PreviewMenu } from './PreviewToolbar';
+import { usePreviewState } from './PreviewSession';
 
 export default function ReadingWidth({
-  kind,
   children,
+  kind = 'document',
+  gutterWidth = 0,
 }: {
-  kind: 'reading' | 'text' | 'code';
   children: ReactNode;
+  kind?: 'document' | 'code';
+  gutterWidth?: number;
 }) {
   const { preferences, setPreferences } = usePreviewPreferences();
-  const key = `${kind}Width` as const;
-  const saved = preferences[key];
-  const [draft, setDraft] = useState<number | null>(null);
-  const frame = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; width: number; side: number } | null>(null);
-  const anchor = useRef<{ range: Range; top: number } | null>(null);
-  const pending = useRef(0);
-  const width = draft ?? saved;
-  const remember = () => {
-    const root = frame.current;
-    if (!root) return;
-    const scroller = root.parentElement!;
-    const box = scroller.getBoundingClientRect();
-    const doc = root.ownerDocument as Document & {
-      caretRangeFromPoint?: (x: number, y: number) => Range | null;
-    };
-    const range = doc.caretRangeFromPoint?.(
-      Math.max(box.left + 80, root.getBoundingClientRect().left + 64),
-      box.top + 32,
-    );
-    if (range && root.contains(range.startContainer))
-      anchor.current = { range, top: range.getBoundingClientRect().top };
-  };
+  const [codeWidth, setCodeWidth] = usePreviewState('reading.codeWidth', 2400);
+  const width = kind === 'code' ? codeWidth : preferences.readingWidth;
   useLayoutEffect(() => {
-    if (anchor.current && frame.current) {
-      const { range, top } = anchor.current;
-      frame.current.parentElement!.scrollTop += range.getBoundingClientRect().top - top;
-      anchor.current = null;
-    }
-  }, [width]);
-  useLayoutEffect(() => () => cancelAnimationFrame(pending.current), []);
-  const save = (value: number) => setPreferences((current) => ({ ...current, [key]: value }));
+    if (kind !== 'code') return;
+    const element = root.current!;
+    const updateInset = () => {
+      const inset =
+        width === 2400 ? 20 : Math.max(20, (element.clientWidth - gutterWidth - width) / 2);
+      element.style.setProperty('--code-inset', `${inset}px`);
+    };
+    updateInset();
+    const observer = new ResizeObserver(updateInset);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [kind, width, gutterWidth]);
+  const update = (next: number) => {
+    const value = Math.round(Math.max(360, Math.min(2400, next)));
+    if (kind === 'code') setCodeWidth(value);
+    else setPreferences((current) => ({ ...current, readingWidth: value }));
+  };
   return (
     <div
-      ref={frame}
-      className={`reading-width reading-width-${kind}`}
-      style={{ width: width ? `${width}px` : '100%' }}
+      ref={root}
+      className={`reading-width reading-width-${kind}${width === 2400 ? ' reading-width-fit' : ''}${kind === 'code' && gutterWidth > 0 ? ' has-gutter' : ''}`}
+      style={
+        {
+          '--reading-width': width === 2400 ? '100%' : `${width}px`,
+          '--reading-gutter-width': `${gutterWidth}px`,
+          '--line-number-width': `${gutterWidth || 36}px`,
+        } as CSSProperties
+      }
     >
-      {(['left', 'right'] as const).map((side) => (
+      {kind === 'document' && (
+        <PreviewMenu>
+          <label className="preview-menu-option">
+            <span>阅读宽度</span>
+            <select
+              aria-label="阅读宽度"
+              value={width}
+              onChange={(e) => update(Number(e.target.value))}
+            >
+              {![640, 860, 1080, 1440, 2400].includes(width) && (
+                <option value={width}>{width} px</option>
+              )}
+              <option value={640}>紧凑 · 640 px</option>
+              <option value={860}>默认 · 860 px</option>
+              <option value={1080}>宽松 · 1080 px</option>
+              <option value={1440}>宽幅 · 1440 px</option>
+              <option value={2400}>适应窗口</option>
+            </select>
+          </label>
+          <button onClick={() => update(860)}>恢复默认阅读宽度</button>
+        </PreviewMenu>
+      )}
+      {children}
+      {[-1, 1].map((side) => (
         <div
           key={side}
-          className={`reading-width-handle ${side}`}
+          className={`reading-width-handle ${side < 0 ? 'left' : 'right'}`}
           role="separator"
-          tabIndex={0}
-          aria-label={`调整${kind === 'code' ? '代码' : kind === 'text' ? '文本' : '正文'}宽度（${side === 'left' ? '左侧' : '右侧'}）`}
+          aria-label={side < 0 ? '调整正文左侧宽度' : '调整正文右侧宽度'}
           aria-orientation="vertical"
-          aria-valuemin={320}
-          aria-valuemax={1600}
-          aria-valuenow={width || undefined}
-          title="拖动调整阅读宽度；双击恢复默认"
-          onDoubleClick={() => {
-            setDraft(null);
-            save(defaultReadingWidths[kind]);
-          }}
+          aria-valuemin={360}
+          aria-valuemax={2400}
+          aria-valuenow={width}
+          tabIndex={0}
           onPointerDown={(event) => {
-            remember();
             drag.current = {
               x: event.clientX,
-              width: frame.current!.getBoundingClientRect().width,
-              side: side === 'right' ? 1 : -1,
+              width: Math.min(width, Math.max(360, root.current!.clientWidth - gutterWidth - 32)),
+              side,
             };
             event.currentTarget.setPointerCapture(event.pointerId);
             event.preventDefault();
           }}
           onPointerMove={(event) => {
-            if (!drag.current) return;
-            const value = clampReadingWidth(
-              drag.current.width + (event.clientX - drag.current.x) * 2 * drag.current.side,
-            );
-            cancelAnimationFrame(pending.current);
-            pending.current = requestAnimationFrame(() => {
-              remember();
-              setDraft(value);
-            });
+            if (drag.current)
+              update(drag.current.width + (event.clientX - drag.current.x) * drag.current.side * 2);
           }}
-          onPointerUp={(event) => {
-            cancelAnimationFrame(pending.current);
-            if (drag.current && Math.abs(event.clientX - drag.current.x) > 1) {
-              remember();
-              save(
-                clampReadingWidth(
-                  drag.current.width + (event.clientX - drag.current.x) * 2 * drag.current.side,
-                ),
-              );
-            }
-            setDraft(null);
+          onPointerUp={() => {
             drag.current = null;
           }}
           onPointerCancel={() => {
-            cancelAnimationFrame(pending.current);
-            setDraft(null);
             drag.current = null;
           }}
           onKeyDown={(event) => {
-            if (!['ArrowLeft', 'ArrowRight', 'Home', 'Space'].includes(event.code)) return;
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
             event.stopPropagation();
-            if (event.code === 'Space') return;
-            remember();
-            save(
-              event.code === 'Home'
-                ? kind === 'reading'
-                  ? 860
-                  : 0
-                : clampReadingWidth(
-                    (width || frame.current!.getBoundingClientRect().width) +
-                      (event.code === 'ArrowRight' ? 32 : -32),
-                  ),
+            const currentWidth = Math.min(
+              width,
+              Math.max(360, root.current!.clientWidth - gutterWidth - 32),
+            );
+            update(
+              event.key === 'Home'
+                ? 360
+                : event.key === 'End'
+                  ? 2400
+                  : currentWidth + (event.key === 'ArrowRight' ? 32 : -32) * side,
             );
           }}
-          onKeyUp={(event) => event.stopPropagation()}
         />
       ))}
-      {children}
     </div>
   );
 }

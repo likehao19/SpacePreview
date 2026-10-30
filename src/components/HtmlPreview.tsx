@@ -11,13 +11,14 @@ import { readInStages } from '../lib/progressive-read';
 import DocumentReader from './DocumentReader';
 import { TextAppearanceControls, useTextAppearance } from './TextAppearance';
 import { forwardPreviewWheel } from '../lib/preview-gestures';
+import { usePreviewState } from './PreviewSession';
 
 export default function HtmlPreview({ file }: { file: PreviewFile }) {
   const { size, font } = useTextAppearance();
   const [html, setHtml] = useState('');
   const [encoding, setEncoding] = useState('');
   const [error, setError] = useState('');
-  const [reading, setReading] = useState(false);
+  const [reading, setReading] = usePreviewState('html.reading', false);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const scrollPosition = useRef(0);
@@ -108,7 +109,7 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
       doc.head.prepend(policy);
       const scrollStyle = doc.createElement('style');
       scrollStyle.textContent =
-        'html,*{scrollbar-width:thin;scrollbar-color:#aab4c4 transparent}@supports selector(::-webkit-scrollbar){html,*{scrollbar-width:auto}}::-webkit-scrollbar{width:5px!important;height:5px!important}::-webkit-scrollbar-thumb{background:#aab4c4!important;border:1px solid transparent!important;background-clip:padding-box!important;border-radius:8px!important}::-webkit-scrollbar-thumb:hover{background:#798698!important}::-webkit-scrollbar-track{background:transparent!important}';
+        'html,*{scrollbar-width:thin;scrollbar-color:#aab4c4 transparent}@supports selector(::-webkit-scrollbar){html,*{scrollbar-width:auto;scrollbar-color:auto}}::-webkit-scrollbar{width:3px!important;height:5px!important}::-webkit-scrollbar-thumb{background:#aab4c4!important;border:0!important;background-clip:padding-box!important;border-radius:8px!important}::-webkit-scrollbar-thumb:hover{background:#798698!important}::-webkit-scrollbar-track{background:transparent!important}';
       doc.head.append(scrollStyle);
       if (active) {
         scrollPosition.current =

@@ -1,4 +1,3 @@
-import { defaultReadingWidths } from './reading-width';
 import type { TextEncoding } from './files';
 
 export const textEncodings = [
@@ -18,10 +17,8 @@ export type PreviewPreferences = {
   encoding: TextEncoding;
   html: 'source' | 'web';
   maxPreviewMiB: number;
-  readingWidth: number;
-  textWidth: number;
-  codeWidth: number;
   tabs: boolean;
+  readingWidth: number;
 };
 export function parsePreviewPreferences(raw: string | null): PreviewPreferences {
   let value: Partial<PreviewPreferences> = {};
@@ -30,17 +27,14 @@ export function parsePreviewPreferences(raw: string | null): PreviewPreferences 
   } catch {
     /* Use defaults for damaged settings. */
   }
-  const width = (value: unknown, fallback: number) =>
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    (value === 0 || (value >= 320 && value <= 1600))
-      ? value
-      : fallback;
   return {
-    readingWidth: width(value.readingWidth, defaultReadingWidths.reading),
-    textWidth: width(value.textWidth, defaultReadingWidths.text),
-    codeWidth: width(value.codeWidth, defaultReadingWidths.code),
     tabs: value.tabs === true,
+    readingWidth:
+      Number.isInteger(value.readingWidth) &&
+      value.readingWidth! >= 360 &&
+      value.readingWidth! <= 2400
+        ? value.readingWidth!
+        : 860,
     maxPreviewMiB:
       Number.isInteger(value.maxPreviewMiB) &&
       value.maxPreviewMiB! >= 16 &&

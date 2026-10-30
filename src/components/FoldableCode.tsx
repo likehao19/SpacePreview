@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { usePreviewState } from './PreviewSession';
 import { codeFolds } from '../lib/code-folds';
 
 export default function FoldableCode({
@@ -13,7 +14,7 @@ export default function FoldableCode({
   query: string;
 }) {
   const ranges = useMemo(() => codeFolds(text, language), [text, language]);
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  const [collapsed, setCollapsed] = usePreviewState<Set<number>>('code.collapsed', () => new Set());
   let hiddenUntil = -1;
   const source = text.split('\n');
   return (
