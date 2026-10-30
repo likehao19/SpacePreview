@@ -276,7 +276,7 @@ try {
             const bytes = new TextEncoder().encode(args.path.split('/').at(-1));
             return bytes.slice(args.offset ?? 0, (args.offset ?? 0) + args.limit).buffer;
           }
-          if (command === 'list_siblings') return ['C:/tests/a.txt', 'C:/tests/b.txt'];
+          if (command === 'navigate_file_selection') return 'C:/tests/b.txt';
         },
       };
     }, platform);
@@ -322,12 +322,17 @@ try {
       window.emitNative('preview-files', {
         paths: ['C:/tests/a.txt', 'C:/tests/b.txt'],
         text: false,
+        fileManager: true,
       }),
     );
     await expect(native.locator('.code-scroll')).toContainText('b.txt');
     await expect(native.locator('.preview-tabs [role="tab"]')).toHaveCount(2);
     await native.evaluate(() =>
-      window.emitNative('preview-files', { paths: ['C:/tests/a.txt'], text: false }),
+      window.emitNative('preview-files', {
+        paths: ['C:/tests/a.txt'],
+        text: false,
+        fileManager: true,
+      }),
     );
     await expect(native.locator('.code-scroll')).toContainText('a.txt');
     await expect(native.locator('.preview-tabs [role="tab"]')).toHaveCount(2);

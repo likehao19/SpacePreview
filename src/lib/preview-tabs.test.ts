@@ -12,6 +12,13 @@ const file = (name: string, modified = 1): PreviewFile => ({
 });
 const empty = (): PreviewTabs => ({ tabs: [], active: null });
 describe('preview tab sessions', () => {
+  it('tracks the originating file manager view for each tab and updates it on reopening', () => {
+    const a = openPreviewTabs(empty(), [file('a.md')], 'auto', true, false, 1);
+    const b = openPreviewTabs(a, [file('b.md')], 'auto', true, false, 2);
+    expect(b.tabs.map((tab) => tab.source)).toEqual([1, 2]);
+    const again = openPreviewTabs(b, [file('a.md')], 'auto', true, false, 3);
+    expect(again.tabs.map((tab) => tab.source)).toEqual([3, 2]);
+  });
   it('keeps the existing single-file behavior when tabs are disabled', () => {
     const a = openPreviewTabs(empty(), [file('a.md')], 'auto', false);
     const b = openPreviewTabs(a, [file('b.md'), file('c.md')], 'text', false);

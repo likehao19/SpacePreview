@@ -16,8 +16,8 @@ use windows::{
         Foundation::{E_NOTIMPL, HWND, LPARAM, LRESULT, WPARAM},
         System::{
             Com::{
-                CoCreateInstance, CoInitializeEx, CoTaskMemFree, IDispatch, IServiceProvider,
-                CLSCTX_ALL, COINIT_APARTMENTTHREADED,
+                CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, IDispatch,
+                IServiceProvider, CLSCTX_ALL, COINIT_APARTMENTTHREADED,
             },
             LibraryLoader::GetModuleHandleW,
             Variant::VARIANT,
@@ -25,8 +25,10 @@ use windows::{
         UI::{
             Input::KeyboardAndMouse::GetAsyncKeyState,
             Shell::{
-                IFolderView2, IShellBrowser, IShellWindows, IWebBrowserApp, SID_STopLevelBrowser,
-                ShellWindows, SIGDN_FILESYSPATH, SVGIO_SELECTION, SWC_DESKTOP, SWFO_NEEDDISPATCH,
+                IFolderView2, IShellBrowser, IShellItem, IShellWindows, IWebBrowserApp,
+                SID_STopLevelBrowser, ShellWindows, SIGDN_FILESYSPATH, SVGIO_SELECTION,
+                SVSI_DESELECTOTHERS, SVSI_ENSUREVISIBLE, SVSI_FOCUSED, SVSI_SELECT, SWC_DESKTOP,
+                SWFO_NEEDDISPATCH,
             },
             WindowsAndMessaging::*,
         },
@@ -37,6 +39,9 @@ static ENABLED: AtomicBool = AtomicBool::new(true);
 static RUNNING: AtomicBool = AtomicBool::new(false);
 static COM_READY: AtomicBool = AtomicBool::new(false);
 static SOURCE_WINDOW: AtomicUsize = AtomicUsize::new(0);
+static SOURCE_VIEW: AtomicUsize = AtomicUsize::new(0);
+static NAV_GENERATION: AtomicUsize = AtomicUsize::new(0);
+thread_local! { static READ_VIEW: Cell<usize> = const { Cell::new(0) }; }
 static REQUESTS: OnceLock<SyncSender<(usize, bool)>> = OnceLock::new();
 #[derive(Clone, Copy, Default)]
 struct SpaceGesture {
@@ -71,6 +76,7 @@ pub fn status() -> serde_json::Value {
 }
 
 pub fn hide_preview(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    cancel_navigation();
     crate::diagnostics::record("native hide-preview");
     unsafe {
         let was_foreground = GetForegroundWindow().0 == window.hwnd()?.0;
@@ -196,15 +202,15 @@ unsafe fn focused_window(foreground: HWND) -> Option<HWND> {
     (!info.hwndFocus.0.is_null()).then_some(info.hwndFocus)
 }
 
-unsafe fn paths_from_browser(
+unsafe fn folder_from_browser(
     dispatch: IDispatch,
     foreground: HWND,
     desktop: bool,
-) -> windows::core::Result<Vec<String>> {
+) -> windows::core::Result<Option<(IFolderView2, HWND)>> {
     if !desktop {
         let browser: IWebBrowserApp = dispatch.cast()?;
         if browser.HWND()?.0 != foreground.0 as isize {
-            return Ok(Vec::new());
+            return Ok(None);
         }
     }
     let provider: IServiceProvider = dispatch.cast()?;
@@ -212,17 +218,32 @@ unsafe fn paths_from_browser(
     let view = browser.QueryActiveShellView()?;
     let view_window = view.GetWindow()?;
     if !IsWindowVisible(view_window).as_bool() {
-        return Ok(Vec::new());
+        return Ok(None);
     }
-    // Windows 11 tabs share one top-level window and inactive tab views can still
-    // report visible. Only the view holding keyboard focus is the active tab.
+    if !desktop && !IsChild(foreground, view_window).as_bool() {
+        return Ok(None);
+    }
+    let folder: IFolderView2 = view.cast()?;
+    Ok(Some((folder, view_window)))
+}
+
+unsafe fn paths_from_browser(
+    dispatch: IDispatch,
+    foreground: HWND,
+    desktop: bool,
+) -> windows::core::Result<Vec<String>> {
+    let Some((folder, view_window)) = folder_from_browser(dispatch, foreground, desktop)? else {
+        return Ok(Vec::new());
+    };
+    // Capture only the tab holding keyboard focus. Navigation later uses this
+    // captured view while our preview window owns foreground focus.
     if !desktop
         && !focused_window(foreground)
             .is_some_and(|focus| focus == view_window || IsChild(view_window, focus).as_bool())
     {
         return Ok(Vec::new());
     }
-    let folder: IFolderView2 = view.cast()?;
+    READ_VIEW.set(view_window.0 as usize);
     if folder.ItemCount(SVGIO_SELECTION)? == 0 {
         return Ok(Vec::new());
     }
@@ -314,6 +335,7 @@ pub fn start(app: AppHandle) {
             match paths {
                 Ok(paths) if !paths.is_empty() && GetForegroundWindow() == foreground => {
                     crate::diagnostics::record(format!("selection count={}", paths.len()));
+                    let source_view = READ_VIEW.get();
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = app.run_on_main_thread(move || {
                             // The COM result may have waited in the UI queue.
@@ -321,6 +343,8 @@ pub fn start(app: AppHandle) {
                                 crate::diagnostics::record("UI cancelled: foreground changed");
                                 return;
                             }
+                            cancel_navigation();
+                            SOURCE_VIEW.store(source_view, Ordering::Relaxed);
                             SOURCE_WINDOW.store(handle, Ordering::Relaxed);
                             let show = window.show();
                             let restore = window.unminimize();
@@ -331,7 +355,7 @@ pub fn start(app: AppHandle) {
                             ));
                             let emit = window.emit(
                                 "preview-files",
-                                serde_json::json!({"paths": paths, "text": text}),
+                                serde_json::json!({"paths": paths, "text": text, "fileManager": true}),
                             );
                             crate::diagnostics::record(format!("UI emit={emit:?}"));
                         });
@@ -343,7 +367,6 @@ pub fn start(app: AppHandle) {
                         _ => "没有读取到普通文件，请选中文件后再按 Space。".into(),
                     };
                     crate::diagnostics::record(format!("selection unavailable: {message}"));
-
                 }
             }
         }
@@ -521,4 +544,118 @@ mod tests {
             windows::Win32::System::Com::CoUninitialize();
         }
     }
+}
+
+pub fn cancel_navigation() {
+    NAV_GENERATION.fetch_add(1, Ordering::SeqCst);
+}
+
+pub async fn navigate(
+    app: AppHandle,
+    path: std::path::PathBuf,
+    direction: i32,
+) -> Result<Option<String>, String> {
+    let generation = NAV_GENERATION.load(Ordering::SeqCst);
+    let source = SOURCE_WINDOW.load(Ordering::Relaxed);
+    let source_view = SOURCE_VIEW.load(Ordering::Relaxed);
+    let preview = app
+        .get_webview_window("main")
+        .ok_or("预览窗口已关闭")?
+        .hwnd()
+        .map_err(|e| e.to_string())?
+        .0 as usize;
+    tauri::async_runtime::spawn_blocking(move || unsafe {
+        CoInitializeEx(None, COINIT_APARTMENTTHREADED)
+            .ok()
+            .map_err(|e| e.to_string())?;
+        struct Apartment;
+        impl Drop for Apartment {
+            fn drop(&mut self) {
+                unsafe { CoUninitialize() };
+            }
+        }
+        let _apartment = Apartment;
+        let valid = || {
+            source != 0
+                && source_view != 0
+                && NAV_GENERATION.load(Ordering::SeqCst) == generation
+                && SOURCE_WINDOW.load(Ordering::Relaxed) == source
+                && SOURCE_VIEW.load(Ordering::Relaxed) == source_view
+                && GetForegroundWindow().0 as usize == preview
+        };
+        let run = || -> windows::core::Result<Option<String>> {
+            let shell: IShellWindows = CoCreateInstance(&ShellWindows, None, CLSCTX_ALL)?;
+            let foreground = HWND(source as *mut _);
+            let desktop = matches!(class_name(foreground).as_str(), "Progman" | "WorkerW");
+            let mut views = Vec::new();
+            if desktop {
+                let mut handle = 0;
+                views.push(shell.FindWindowSW(
+                    &VARIANT::from(0i32),
+                    &VARIANT::default(),
+                    SWC_DESKTOP,
+                    &mut handle,
+                    SWFO_NEEDDISPATCH,
+                )?);
+            } else {
+                for index in 0..shell.Count()? {
+                    if let Ok(view) = shell.Item(&VARIANT::from(index)) {
+                        views.push(view);
+                    }
+                }
+            }
+            for dispatch in views {
+                let Ok(Some((folder, view))) = folder_from_browser(dispatch, foreground, desktop)
+                else {
+                    continue;
+                };
+                if view.0 as usize != source_view {
+                    continue;
+                }
+                let index = folder.GetFocusedItem()?;
+                let current: IShellItem = folder.GetItem(index)?;
+                let item_path = |item: &IShellItem| -> windows::core::Result<String> {
+                    let raw = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+                    let result = raw.to_string();
+                    CoTaskMemFree(Some(raw.0.cast()));
+                    Ok(result?)
+                };
+                if !valid()
+                    || std::fs::canonicalize(item_path(&current)?).ok().as_ref() != Some(&path)
+                {
+                    break;
+                }
+                // The generated wrapper discards S_FALSE; inspect it before using the index.
+                let mut next = -1;
+                let result = (Interface::vtable(&folder).GetVisibleItem)(
+                    Interface::as_raw(&folder),
+                    index,
+                    (direction < 0).into(),
+                    &mut next,
+                );
+                result.ok()?;
+                if result == windows::Win32::Foundation::S_FALSE || next < 0 || next == index {
+                    return Ok(None);
+                }
+                let item: IShellItem = folder.GetItem(next)?;
+                let next_path = item_path(&item)?;
+                if !valid() {
+                    return Ok(None);
+                }
+                folder.SelectItem(
+                    next,
+                    (SVSI_SELECT.0 | SVSI_DESELECTOTHERS.0 | SVSI_FOCUSED.0 | SVSI_ENSUREVISIBLE.0)
+                        as u32,
+                )?;
+                return Ok(Some(next_path));
+            }
+            Err(windows::core::Error::new(
+                E_NOTIMPL,
+                "资源管理器视图或选择已改变，请重新选中文件后预览。",
+            ))
+        };
+        run().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

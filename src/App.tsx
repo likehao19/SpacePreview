@@ -62,7 +62,6 @@ import {
   type PreviewAction,
   type ActionShortcuts,
 } from './lib/action-shortcuts';
-import { adjacentFile, sortFilePaths } from './lib/file-navigation';
 import { clipboardPath } from './lib/clipboard-path';
 
 type Theme = 'system' | 'light' | 'dark';
@@ -84,6 +83,10 @@ type AgentStatus = {
   automation?: boolean;
   keyboard?: boolean;
   lastKeyResult?: number;
+  selectionError?: string;
+  qspaceInstalled?: boolean;
+  qspaceAutomation?: boolean;
+  qspaceRunning?: boolean;
 };
 const trace = (stage: string) => {
   if (desktop) void invoke('trace_preview', { stage }).catch(() => {});
@@ -176,21 +179,30 @@ export default function App() {
   const [menuTarget, setMenuTarget] = useState<HTMLDivElement | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const request = useRef(0);
-  const initialPaths = useRef<Promise<{ paths: string[]; text: boolean }> | null>(null);
+  const initialPaths = useRef<Promise<{
+    paths: string[];
+    text: boolean;
+    fileManager?: boolean;
+  }> | null>(null);
   const initialHandled = useRef(false);
   const choosing = useRef(false);
-  const navigation = useRef<{ paths: string[]; busy: boolean } | null>(null);
+  const navigation = useRef<{ busy: boolean } | null>(null);
+  const sourceEpoch = useRef(0);
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
   useEffect(() => {
-    if (settingsOpen || !file) navigation.current = null;
+    if (settingsOpen || !file) {
+      navigation.current = null;
+      if (desktop) void invoke('cancel_file_navigation').catch(() => {});
+    }
   }, [settingsOpen, file?.id]);
   usePreviewWindow(
     desktop && macos && !opening && !suspended,
     file ? `${file.id}:${mode}:${request.current}` : '',
     settingsOpen,
     mode === 'auto' && file && !file.directory ? detectKind(file.name) : 'text',
+    tabPreview.tabs.length > 1,
   );
   useEffect(() => {
     if (!desktop || (file && !settingsOpen)) return;
@@ -315,13 +327,18 @@ export default function App() {
   }, [file?.id]);
 
   const loadFiles = useCallback(
-    (incoming: PreviewFile[], initialMode: 'auto' | 'text' = 'auto', replace = false) => {
+    (
+      incoming: PreviewFile[],
+      initialMode: 'auto' | 'text' = 'auto',
+      replace = false,
+      source: number | null = null,
+    ) => {
       if (!incoming.length) return;
       request.current++;
       spaceAction.current = null;
       setOpening(false);
       setSuspended(false);
-      openFiles(incoming, initialMode, replace);
+      openFiles(incoming, initialMode, replace, source);
       setPreviewError('');
       setSettingsOpen(false);
       setMenuOpen(false);
@@ -329,8 +346,12 @@ export default function App() {
     [openFiles],
   );
   const loadPaths = useCallback(
-    async (paths: string[], forceText = false, navigating = false) => {
-      if (!navigating) navigation.current = null;
+    async (paths: string[], forceText = false, navigating = false, fromFileManager = false) => {
+      if (!navigating) {
+        navigation.current = null;
+        if (fromFileManager) sourceEpoch.current++;
+        if (desktop) void invoke('cancel_file_navigation').catch(() => {});
+      }
       const version = ++request.current;
       setOpening(true);
       try {
@@ -338,7 +359,12 @@ export default function App() {
           (preferences.tabs && !navigating ? paths : paths.slice(0, 1)).map(inspectPath),
         );
         if (version !== request.current) return;
-        loadFiles(incoming, forceText ? 'text' : 'auto', navigating);
+        loadFiles(
+          incoming,
+          forceText ? 'text' : 'auto',
+          navigating,
+          fromFileManager || navigating ? sourceEpoch.current : null,
+        );
         trace('loaded');
       } catch (e) {
         trace('load-error');
@@ -365,19 +391,26 @@ export default function App() {
   );
 
   const navigateFile = async (direction: -1 | 1) => {
-    if (!desktop || !file?.path || file.directory || archiveStack.length || opening) return;
+    if (!desktop || !file?.path || archiveStack.length || opening) return;
+    if (!tabPreview.source || tabPreview.source !== sourceEpoch.current) {
+      setToast(
+        `请在 ${macos ? 'Finder 或 QSpace Pro' : fileManager} 中重新选中文件后按预览快捷键，以跟随当前视图切换。`,
+      );
+      return;
+    }
     if (navigation.current?.busy) return;
-    const session = navigation.current ?? { paths: [], busy: false };
+    const session = navigation.current ?? { busy: false };
     navigation.current = session;
     session.busy = true;
     const version = request.current;
     try {
-      if (!session.paths.length)
-        session.paths = sortFilePaths(await invoke<string[]>('list_siblings', { path: file.path }));
+      const next = await invoke<string | null>('navigate_file_selection', {
+        path: file.path,
+        direction,
+      });
       if (navigation.current !== session || request.current !== version) return;
-      const next = adjacentFile(session.paths, file.path, direction);
       if (next) await loadPaths([next], false, true);
-      else setToast(direction < 0 ? '已经是第一个文件' : '已经是最后一个文件');
+      else setToast('当前位置没有可切换的文件');
     } catch (error) {
       if (navigation.current === session && request.current === version)
         setToast(`切换文件失败：${String(error)}`);
@@ -421,6 +454,7 @@ export default function App() {
     setOpening(false);
     setPreviewError('');
     setMenuOpen(false);
+    if (desktop) void invoke('cancel_file_navigation').catch(() => {});
     tabPreview.select(id);
   };
   const closeTab = (id: string) => {
@@ -435,6 +469,7 @@ export default function App() {
       setOpening(false);
       setMenuOpen(false);
       setPreviewError('');
+      if (desktop) void invoke('cancel_file_navigation').catch(() => {});
     }
     tabPreview.close(id);
   };
@@ -491,9 +526,9 @@ export default function App() {
     const register = (promise: Promise<() => void>) =>
       promise.then((stop) => (disposed ? stop() : unlisteners.push(stop)));
     const filesReady = register(
-      listen<{ paths: string[]; text: boolean }>('preview-files', (e) => {
+      listen<{ paths: string[]; text: boolean; fileManager?: boolean }>('preview-files', (e) => {
         trace('received');
-        void loadPaths(e.payload.paths, e.payload.text);
+        void loadPaths(e.payload.paths, e.payload.text, false, e.payload.fileManager === true);
       }),
     );
     void register(
@@ -532,12 +567,17 @@ export default function App() {
     void filesReady
       .then(
         () =>
-          (initialPaths.current ??= invoke<{ paths: string[]; text: boolean }>('initial_paths')),
+          (initialPaths.current ??= invoke<{
+            paths: string[];
+            text: boolean;
+            fileManager?: boolean;
+          }>('initial_paths')),
       )
       .then((initial) => {
         if (disposed || initialHandled.current) return;
         initialHandled.current = true;
-        if (initial.paths.length) void loadPaths(initial.paths, initial.text);
+        if (initial.paths.length)
+          void loadPaths(initial.paths, initial.text, false, initial.fileManager === true);
       })
       .catch((error) => {
         if (!disposed) setPreviewError(`初始文件读取失败：${String(error)}`);
@@ -717,7 +757,7 @@ export default function App() {
       if (action) {
         if (
           (action === 'previousFile' || action === 'nextFile') &&
-          (!desktop || !file.path || file.directory || archiveStack.length)
+          (!desktop || !file.path || archiveStack.length)
         )
           return;
         event.preventDefault();
@@ -1362,17 +1402,43 @@ export default function App() {
                         </button>
                       </div>
                     )}
+                  {desktop && macos && agent?.qspaceInstalled && (
+                    <div className="mac-permissions">
+                      <strong>QSpace Pro</strong>
+                      <p>
+                        {agent.qspaceRunning
+                          ? '当前面板的快捷键预览已就绪'
+                          : '需单独允许瞬览读取 QSpace Pro 的选中文件。仅支持可读取的本地文件；未授权时保留 QSpace 的原有预览。'}
+                      </p>
+                      {!agent.qspaceRunning && (
+                        <button
+                          onClick={() =>
+                            void invoke('request_agent_permissions', { manager: 'qspace' }).catch(
+                              (error) => setToast(`权限请求失败：${String(error)}`),
+                            )
+                          }
+                        >
+                          授权 QSpace Pro 预览
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {desktop && macos && agent?.selectionError && (
+                    <p className="shortcut-help" role="alert">
+                      {agent.selectionError}
+                    </p>
+                  )}
                   {desktop && macos && agent && (
                     <p className="shortcut-help" role="status">
-                      最近一次预览按键：
+                      最近一次文件管理器预览按键：
                       {
                         [
                           '尚未收到',
-                          '前台不是 Finder',
-                          'Finder 自动化权限未就绪',
-                          'Finder 焦点读取失败或超时',
+                          '前台不是受支持的文件管理器',
+                          '当前文件管理器自动化权限未就绪',
+                          '文件区焦点读取失败或超时',
                           '焦点在输入框、工具栏或侧边栏',
-                          '未识别到 Finder 文件区',
+                          '未识别到文件区',
                           '已接管',
                         ][agent.lastKeyResult ?? 0]
                       }
@@ -1481,9 +1547,9 @@ export default function App() {
                     ))}
                   </div>
                   <p className="shortcut-help">
-                    按同目录文件名顺序切换（例如 2 在 10 前）；不会改变 Finder
-                    或资源管理器中的选择。文档可用滚轮或 Page Up / Down
-                    浏览，输入框和目录树保留方向键操作。
+                    跟随 Finder /
+                    资源管理器当前视图切换并同步选中项，保留当前排序和搜索结果。请从文件管理器唤起预览；原窗口或标签页改变后需重新选中文件。文档可用滚轮或
+                    Page Up / Down 浏览，输入框和目录树保留方向键操作。
                   </p>
                   <h3>常用操作</h3>
                   <div className="shortcuts">

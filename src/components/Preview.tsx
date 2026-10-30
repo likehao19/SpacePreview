@@ -1121,6 +1121,16 @@ function OfdPreview({ file }: { file: PreviewFile }) {
 
 function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
   const url = useFileUrl(file);
+  const player = useRef<HTMLMediaElement>(null);
+  useEffect(() => {
+    const media = player.current;
+    return () => {
+      if (!media) return;
+      media.pause();
+      media.removeAttribute('src');
+      media.load();
+    };
+  }, [url]);
   const [error, setError] = useState(false);
   return (
     <div className={`media-preview ${audio ? 'audio-preview' : ''}`}>
@@ -1133,10 +1143,27 @@ function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
           </div>
           <h2>{file.name}</h2>
           <p>停下来，听一会儿。</p>
-          {url && <audio autoPlay controls src={url} onError={() => setError(true)} />}
+          {url && (
+            <audio
+              ref={player as React.RefObject<HTMLAudioElement | null>}
+              autoPlay
+              controls
+              src={url}
+              onError={() => setError(true)}
+            />
+          )}
         </>
       ) : (
-        url && <video autoPlay controls playsInline src={url} onError={() => setError(true)} />
+        url && (
+          <video
+            ref={player as React.RefObject<HTMLVideoElement | null>}
+            autoPlay
+            controls
+            playsInline
+            src={url}
+            onError={() => setError(true)}
+          />
+        )
       )}
     </div>
   );

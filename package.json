@@ -1,7 +1,7 @@
 {
   "name": "space-preview",
   "private": true,
-  "version": "0.10.16",
+  "version": "0.10.17",
   "type": "module",
   "scripts": {
     "predev": "node scripts/prepare-pdf.mjs && node scripts/prepare-formats.mjs",

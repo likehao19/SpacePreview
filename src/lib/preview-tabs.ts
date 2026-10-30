@@ -6,6 +6,7 @@ export interface PreviewTab {
   id: string;
   file: PreviewFile;
   mode: PreviewMode;
+  source?: number | null;
   archiveStack: PreviewFile[];
   views: Map<string, SessionCache>;
 }
@@ -22,6 +23,7 @@ export function openPreviewTabs(
   mode: PreviewMode,
   multiple: boolean,
   replace = false,
+  source: number | null = null,
 ): PreviewTabs {
   if (!files.length) return current;
   const tabs = multiple ? [...current.tabs] : [];
@@ -33,16 +35,18 @@ export function openPreviewTabs(
       if (replace) {
         const index = tabs.findIndex((tab) => tab.id === active);
         if (index >= 0) {
-          tabs.splice(index, 1, { id, file, mode, archiveStack: [], views: new Map() });
+          tabs.splice(index, 1, { id, file, mode, source, archiveStack: [], views: new Map() });
           active = id;
           continue;
         }
       }
-      tabs.push({ id, file, mode, archiveStack: [], views: new Map() });
+      tabs.push({ id, file, mode, source, archiveStack: [], views: new Map() });
     } else if (existing.file.modified !== file.modified || existing.file.size !== file.size) {
-      tabs[tabs.indexOf(existing)] = { id, file, mode, archiveStack: [], views: new Map() };
+      tabs[tabs.indexOf(existing)] = { id, file, mode, source, archiveStack: [], views: new Map() };
     } else if (mode === 'text') {
-      tabs[tabs.indexOf(existing)] = { ...existing, mode };
+      tabs[tabs.indexOf(existing)] = { ...existing, mode, source };
+    } else {
+      tabs[tabs.indexOf(existing)] = { ...existing, source };
     }
     active = id;
   }

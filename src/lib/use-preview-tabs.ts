@@ -19,8 +19,8 @@ export function usePreviewTabs(enabled: boolean) {
       }));
   }, [enabled]);
   const openFiles = useCallback(
-    (files: PreviewFile[], mode: PreviewMode, replace = false) => {
-      setState((current) => openPreviewTabs(current, files, mode, enabled, replace));
+    (files: PreviewFile[], mode: PreviewMode, replace = false, source: number | null = null) => {
+      setState((current) => openPreviewTabs(current, files, mode, enabled, replace, source));
     },
     [enabled],
   );
@@ -69,6 +69,7 @@ export function usePreviewTabs(enabled: boolean) {
   return {
     tabs: state.tabs,
     activeId: state.active,
+    source: active?.source,
     files: active ? [active.file] : [],
     mode: active?.mode ?? 'auto',
     archiveStack: active?.archiveStack ?? [],
