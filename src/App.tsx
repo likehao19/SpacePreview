@@ -61,6 +61,7 @@ import {
   type ActionShortcuts,
 } from './lib/action-shortcuts';
 import { adjacentFile, sortFilePaths } from './lib/file-navigation';
+import { clipboardPath } from './lib/clipboard-path';
 
 type Theme = 'system' | 'light' | 'dark';
 type Settings = {
@@ -413,7 +414,7 @@ export default function App() {
   const copyPath = async () => {
     if (!file) return;
     try {
-      await navigator.clipboard.writeText(file.path ?? file.name);
+      await navigator.clipboard.writeText(file.path ? clipboardPath(file.path) : file.name);
       setToast(file.path ? '文件路径已复制' : '文件名已复制（当前预览没有本地路径）');
     } catch {
       setToast('剪贴板不可用，请在桌面版中重试。');
