@@ -348,50 +348,38 @@ fn read_at(path: &Path, offset: u64, limit: usize) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-#[tauri::command]
-fn list_siblings(
-    path: String,
-    app: tauri::AppHandle,
-    state: State<PreviewState>,
-) -> Result<Vec<FileInfo>, String> {
-    let current = authorized(&path, &state)?;
-    if current.is_dir() {
-        return Ok(vec![metadata(&current)?]);
-    }
+// Only enumerate names on demand; file contents and metadata are read after navigation.
+fn sibling_paths(current: &Path) -> Result<Vec<String>, String> {
     let parent = current.parent().ok_or("找不到父目录")?;
-    let mut paths: Vec<PathBuf> = fs::read_dir(parent)
-        .map_err(|e| e.to_string())?
-        .take(2001)
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| p.is_file())
-        .collect();
-    if paths.len() > 2000 {
-        return Ok(vec![metadata(&current)?]);
-    }
-    paths.sort_by_key(|p| {
-        p.file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_lowercase()
-    });
-    let mut results = Vec::new();
-    for path in paths {
-        if let Ok(canonical) = fs::canonicalize(path) {
-            if let Ok(info) = metadata(&canonical) {
-                app.asset_protocol_scope()
-                    .allow_file(&canonical)
-                    .map_err(|e| e.to_string())?;
-                state
-                    .allowed
-                    .lock()
-                    .map_err(|e| e.to_string())?
-                    .insert(canonical);
-                results.push(info);
-            }
+    let mut paths = Vec::new();
+    for (index, entry) in fs::read_dir(parent).map_err(|e| e.to_string())?.enumerate() {
+        if index >= 10_000 {
+            return Err("目录超过 10000 项，请在文件管理器中选择文件。".into());
+        }
+        let entry = entry.map_err(|e| e.to_string())?;
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
+        if entry.file_type().map_err(|e| e.to_string())?.is_file() {
+            paths.push(entry.path().to_string_lossy().into_owned());
         }
     }
-    Ok(results)
+    let current = current.to_string_lossy().into_owned();
+    if !paths.contains(&current) {
+        paths.push(current);
+    }
+    Ok(paths)
+}
+
+#[tauri::command]
+async fn list_siblings(
+    path: String,
+    state: State<'_, PreviewState>,
+) -> Result<Vec<String>, String> {
+    let current = authorized(&path, &state)?;
+    tauri::async_runtime::spawn_blocking(move || sibling_paths(&current))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -684,6 +672,22 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn siblings_only_enumerate_regular_visible_files() {
+        let root =
+            std::env::temp_dir().join(format!("spacepreview-siblings-{}", std::process::id()));
+        fs::create_dir_all(root.join("subfolder")).unwrap();
+        for name in ["1.txt", "2.txt", ".hidden.txt"] {
+            fs::write(root.join(name), b"test").unwrap();
+        }
+        let paths = sibling_paths(&root.join("1.txt")).unwrap();
+        assert_eq!(paths.len(), 2);
+        assert!(paths.contains(&root.join("2.txt").to_string_lossy().into_owned()));
+        let hidden = sibling_paths(&root.join(".hidden.txt")).unwrap();
+        assert_eq!(hidden.len(), 3);
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn bounded_reads_do_not_load_the_whole_file() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");

@@ -84,6 +84,11 @@ export function forwardPreviewKey(event: KeyboardEvent): void {
     (event.target as HTMLElement | null)?.closest('input,textarea,select,[contenteditable]')
   )
     return;
+  if (
+    ['ArrowUp', 'ArrowDown'].includes(event.key) &&
+    (event.target as HTMLElement | null)?.closest('button,[role=tree],[role=slider]')
+  )
+    return;
   const forwarded = new KeyboardEvent(event.type, {
     key: event.key,
     code: event.code,

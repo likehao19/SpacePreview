@@ -47,6 +47,21 @@ import {
   type Shortcut,
 } from './lib/shortcuts';
 
+import {
+  actionLabels,
+  previewActions,
+  defaultActions,
+  restoreActions,
+  actionFromEvent,
+  actionConflict,
+  actionLabel,
+  matchesAction,
+  sameShortcut,
+  type PreviewAction,
+  type ActionShortcuts,
+} from './lib/action-shortcuts';
+import { adjacentFile, sortFilePaths } from './lib/file-navigation';
+
 type Theme = 'system' | 'light' | 'dark';
 type Settings = {
   theme: Theme;
@@ -54,6 +69,8 @@ type Settings = {
   spaceEnabled: boolean;
   windowsShortcut: Shortcut;
   macosShortcut: Shortcut;
+  windowsActions: ActionShortcuts;
+  macosActions: ActionShortcuts;
 };
 type AgentStatus = {
   supported: boolean;
@@ -81,6 +98,16 @@ function savedSettings(): Settings {
       spaceEnabled: s.spaceEnabled !== false,
       windowsShortcut: validShortcut(s.windowsShortcut) ? s.windowsShortcut : defaultShortcut,
       macosShortcut: validShortcut(s.macosShortcut) ? s.macosShortcut : defaultShortcut,
+      windowsActions: restoreActions(
+        s.windowsActions,
+        false,
+        validShortcut(s.windowsShortcut) ? s.windowsShortcut : defaultShortcut,
+      ),
+      macosActions: restoreActions(
+        s.macosActions,
+        true,
+        validShortcut(s.macosShortcut) ? s.macosShortcut : defaultShortcut,
+      ),
     };
   } catch {
     return {
@@ -89,6 +116,8 @@ function savedSettings(): Settings {
       spaceEnabled: true,
       windowsShortcut: defaultShortcut,
       macosShortcut: defaultShortcut,
+      windowsActions: defaultActions(false),
+      macosActions: defaultActions(true),
     };
   }
 }
@@ -115,10 +144,14 @@ export default function App() {
   const [settingsPage, setSettingsPage] = useState<(typeof settingsPages)[number]['id']>('guide');
   const [autostart, setAutostart] = useState<boolean | null>(null);
   const [autostartBusy, setAutostartBusy] = useState(false);
-  const [recording, setRecording] = useState<'windowsShortcut' | 'macosShortcut' | null>(null);
+  const [recording, setRecording] = useState<
+    'windowsShortcut' | 'macosShortcut' | PreviewAction | null
+  >(null);
   const [shortcutError, setShortcutError] = useState('');
   const shortcut = macos ? settings.macosShortcut : settings.windowsShortcut;
   const previewKey = shortcutLabel(shortcut, macos);
+  const actionSettingsKey = macos ? 'macosActions' : 'windowsActions';
+  const actions = settings[actionSettingsKey];
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [toast, setToast] = useState('');
@@ -130,9 +163,13 @@ export default function App() {
   const input = useRef<HTMLInputElement>(null);
   const request = useRef(0);
   const choosing = useRef(false);
+  const navigation = useRef<{ paths: string[]; busy: boolean } | null>(null);
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
+  useEffect(() => {
+    if (settingsOpen || !file) navigation.current = null;
+  }, [settingsOpen, file?.id]);
   usePreviewWindow(
     desktop && macos && !opening,
     file ? `${file.id}:${mode}:${request.current}` : '',
@@ -275,7 +312,8 @@ export default function App() {
     [],
   );
   const loadPaths = useCallback(
-    async (paths: string[], forceText = false) => {
+    async (paths: string[], forceText = false, navigating = false) => {
+      if (!navigating) navigation.current = null;
       const version = ++request.current;
       setOpening(true);
       try {
@@ -286,6 +324,11 @@ export default function App() {
       } catch (e) {
         trace('load-error');
         if (version === request.current) {
+          if (navigating) {
+            navigation.current = null;
+            setToast(`切换文件失败：${String(e)}`);
+            return;
+          }
           setFiles([]);
           setArchiveStack([]);
           setSettingsOpen(false);
@@ -301,6 +344,28 @@ export default function App() {
     },
     [loadFiles, macos],
   );
+
+  const navigateFile = async (direction: -1 | 1) => {
+    if (!desktop || !file?.path || file.directory || archiveStack.length || opening) return;
+    if (navigation.current?.busy) return;
+    const session = navigation.current ?? { paths: [], busy: false };
+    navigation.current = session;
+    session.busy = true;
+    const version = request.current;
+    try {
+      if (!session.paths.length)
+        session.paths = sortFilePaths(await invoke<string[]>('list_siblings', { path: file.path }));
+      if (navigation.current !== session || request.current !== version) return;
+      const next = adjacentFile(session.paths, file.path, direction);
+      if (next) await loadPaths([next], false, true);
+      else setToast(direction < 0 ? '已经是第一个文件' : '已经是最后一个文件');
+    } catch (error) {
+      if (navigation.current === session && request.current === version)
+        setToast(`切换文件失败：${String(error)}`);
+    } finally {
+      session.busy = false;
+    }
+  };
 
   const choose = useCallback(async () => {
     if (!desktop) {
@@ -320,6 +385,7 @@ export default function App() {
   }, [loadPaths]);
   const closePreview = useCallback(() => {
     trace('close');
+    navigation.current = null;
     request.current++;
     setFiles([]);
     setPreviewError('');
@@ -465,11 +531,34 @@ export default function App() {
           return;
         }
         if (/^(Control|Alt|Meta|Shift)(Left|Right)$/.test(event.code)) return;
+        if (previewActions.includes(recording as PreviewAction)) {
+          const action = recording as PreviewAction;
+          const next = actionFromEvent(event);
+          if (!next || actionConflict(next, action, actions, shortcut)) {
+            setShortcutError(
+              '快捷键无效或已被占用，请选择其他组合。Esc、Space、系统菜单、编辑和检索快捷键保留。',
+            );
+            return;
+          }
+          setSettings((s) => ({
+            ...s,
+            [actionSettingsKey]: { ...s[actionSettingsKey], [action]: next },
+          }));
+          setRecording(null);
+          setShortcutError('');
+          return;
+        }
         const next = shortcutFromEvent(event);
         if (!next) {
           setShortcutError(
             '使用字母、数字、符号、F1–F12 或 Space，可组合 Ctrl / Alt / ⌘。Shift 保留为纯文本预览；Ctrl / ⌘ + O 用于选择文件，Ctrl / ⌘ + C、加减号保留给复制和字号操作，Ctrl / ⌘ + F 用于文件检索。',
           );
+          return;
+        }
+        const targetActions =
+          recording === 'macosShortcut' ? settings.macosActions : settings.windowsActions;
+        if (previewActions.some((action) => sameShortcut(next, targetActions[action]))) {
+          setShortcutError('此快捷键已用于预览内操作，请选择其他组合。');
           return;
         }
         setSettings((s) => ({ ...s, [recording]: next }));
@@ -543,19 +632,26 @@ export default function App() {
         setArchiveStack((stack) => stack.slice(0, -1));
       }
       if (
-        event.key === 'Enter' &&
-        plainKey &&
-        !(event.target instanceof HTMLElement && event.target.closest('button'))
+        menuOpen ||
+        (event.target instanceof HTMLElement &&
+          event.target.closest(
+            '[role="tree"], button, [role="slider"], input, textarea, select, [contenteditable]',
+          ))
       )
-        void openFile();
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        !event.altKey &&
-        event.shiftKey &&
-        event.key.toLowerCase() === 'c'
-      ) {
+        return;
+      const action = previewActions.find((name) => matchesAction(event, actions[name]));
+      if (action) {
+        if (
+          (action === 'previousFile' || action === 'nextFile') &&
+          (!desktop || !file.path || file.directory || archiveStack.length)
+        )
+          return;
         event.preventDefault();
-        void copyPath();
+        event.stopPropagation();
+        if (event.repeat) return;
+        if (action === 'copyPath') void copyPath();
+        else if (action === 'openDefault') void openFile();
+        else void navigateFile(action === 'previousFile' ? -1 : 1);
       }
     };
     const cancelSpace = () => {
@@ -722,7 +818,8 @@ export default function App() {
                           void openFile();
                         }}
                       >
-                        <ArrowDownToLine size={15} /> 默认应用打开 <kbd>↵</kbd>
+                        <ArrowDownToLine size={15} /> 默认应用打开{' '}
+                        <kbd>{actionLabel(actions.openDefault, macos)}</kbd>
                       </button>
                       <hr />
                       {(['auto', 'text', 'info'] as const).map((m, i) => (
@@ -741,7 +838,7 @@ export default function App() {
                       <hr />
                       <button onClick={() => void copyPath()}>
                         <ArrowDownToLine size={15} />
-                        复制文件路径
+                        复制文件路径 <kbd>{actionLabel(actions.copyPath, macos)}</kbd>
                       </button>
                       <button
                         onClick={() => {
@@ -1198,6 +1295,55 @@ export default function App() {
                     {shortcutError ||
                       '点击按键后录入，自动保存；Esc 取消。Shift + 预览快捷键用于纯文本模式。请避开系统已占用的组合。'}
                   </p>
+                  <h3>预览内操作</h3>
+                  <div className="shortcut-editors">
+                    {previewActions.map((action) => (
+                      <div className="shortcut-editor" key={action}>
+                        <span>{actionLabels[action]}</span>
+                        <button
+                          className={`shortcut-record ${recording === action ? 'recording' : ''}`}
+                          aria-label={`修改${actionLabels[action]}快捷键`}
+                          onClick={() => {
+                            spaceAction.current = null;
+                            setRecording(action);
+                            setShortcutError('');
+                          }}
+                          onBlur={() =>
+                            setRecording((current) => (current === action ? null : current))
+                          }
+                        >
+                          <Keyboard size={15} />
+                          {recording === action
+                            ? '请按快捷键…'
+                            : actionLabel(actions[action], macos)}
+                        </button>
+                        <button
+                          className="shortcut-reset"
+                          aria-label={`重置${actionLabels[action]}快捷键`}
+                          onClick={() => {
+                            const next = defaultActions(macos)[action];
+                            setRecording(null);
+                            if (actionConflict(next, action, actions, shortcut)) {
+                              setShortcutError('默认快捷键已被其他操作占用，请先修改该操作。');
+                              return;
+                            }
+                            setShortcutError('');
+                            setSettings((s) => ({
+                              ...s,
+                              [actionSettingsKey]: { ...s[actionSettingsKey], [action]: next },
+                            }));
+                          }}
+                        >
+                          重置
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="shortcut-help">
+                    按同目录文件名顺序切换（例如 2 在 10 前）；不会改变 Finder
+                    或资源管理器中的选择。文档可用滚轮或 Page Up / Down
+                    浏览，输入框和目录树保留方向键操作。
+                  </p>
                   <h3>常用操作</h3>
                   <div className="shortcuts">
                     {[
@@ -1205,8 +1351,6 @@ export default function App() {
                       ['文件内检索', macos ? '⌘F' : 'Ctrl + F'],
                       ['关闭预览', `${previewKey} / Esc`],
                       ['纯文本预览', `Shift + ${previewKey}`],
-                      ['复制路径', macos ? '⇧⌘C' : 'Ctrl + Shift + C'],
-                      ['默认应用打开', 'Enter'],
                       ['增大 / 减小文字', macos ? '⌘ + / −' : 'Ctrl + + / −'],
                       ['滚轮调整文字', macos ? '⌘ + 滚轮上 / 下' : 'Ctrl + 滚轮上 / 下'],
                     ].map(([label, key]) => (

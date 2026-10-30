@@ -358,3 +358,12 @@ v0.2.1 已通过上述自动测试与 8 项生产引擎检查。Windows UI 工�
 - The real preview-window hook with mocked native window calls selected OFD page dimensions
   rather than the default fallback size. Native Mac window interaction and Windows
   installation were not exercised by this browser regression.
+
+
+## 自定义快捷键与文件切换（2026-10-30）
+
+- 设置 → 快捷键新增复制路径、默认应用打开、上一文件、下一文件的录入和重置；Windows/macOS 分别保存。检查与预览触发键（包含 Shift 纯文本变体）以及其他操作的冲突，保留系统菜单、编辑、查找和字号快捷键。
+- 上下键在当前预览内按同目录文件名自然排序切换，不改变 Finder/资源管理器的选择或跟随其自定义排序。目录树、输入框和按钮保留自身键盘行为。浏览器文件、文件夹和压缩包内部不使用同目录切换。
+- 首次切换后台枚举普通文件名，最多检查 10000 个目录项，超限显示提示，不返回不完整列表；随后复用目录列表，只有选中的文件才读取内容。隐藏文件不加入列表（当前文件除外）。关闭、打开其他文件或进入设置时废弃旧导航会话。
+- 验证：148 项前端测试、13 项 Rust 测试、TypeScript 与生产构建通过。Playwright CLI 配合 Tauri IPC 模拟验证 macOS/Windows 分支的自然排序、首尾边界、一次目录枚举、复制路径、搜索输入框保护、关闭后迟到结果无效；设置录入、重复按键拒绝、刷新后恢复与重置通过。
+- 本轮未替换已安装应用，未在 Windows 实机/WebView2 内验证；IPC 模拟不等同于原生端到端测试。未测量 CPU、内存或首屏耗时，不作性能数值结论。
