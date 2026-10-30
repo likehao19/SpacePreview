@@ -135,12 +135,14 @@ Open files by dragging them in or using `Ctrl+O`. Linux file-manager Space integ
 | Show / close preview | `Space` | `Space` |
 | Close menu, settings, or preview | `Esc` | `Esc` |
 | Request / switch to text preview | `Shift+Space` | `Shift+Space` |
-| Previous / next file | `←` / `→` | `←` / `→` |
+| Previous / next file | `↑` / `↓` | `↑` / `↓` |
 | Choose a file | `Ctrl+O` | `⌘O` |
 | Copy path | `Ctrl+Shift+C` | `⌘⇧C` |
 | Adjust text size or page zoom | `Ctrl++` / `Ctrl+-` | `⌘+` / `⌘-` |
 | Adjust with the mouse wheel | `Ctrl+wheel` | `⌘+wheel` |
 | Open in the default application | `Enter` | `Enter` |
+
+File navigation follows the originating Finder / Explorer view and updates its selection, including the current sort order and search results. Open the preview from that file manager to use this feature.
 
 Customize the preview key in **Preferences → Shortcuts**. Inputs, media controls, and focused buttons retain their own keyboard behavior. Browser files and archive entries copy the filename rather than a local path. Default-open does not run executables or scripts. See the [preview guide](docs/PREVIEW-GUIDE.md).
 

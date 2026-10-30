@@ -112,7 +112,7 @@ const MAX_READ: usize = 32 * 1024 * 1024;
 #[derive(Default)]
 struct PreviewState {
     allowed: Mutex<HashSet<PathBuf>>,
-    startup: Mutex<(bool, Option<(Vec<String>, bool)>)>,
+    startup: Mutex<(bool, Option<(Vec<String>, bool, bool)>)>,
 }
 
 #[derive(Serialize)]
@@ -348,38 +348,34 @@ fn read_at(path: &Path, offset: u64, limit: usize) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-// Only enumerate names on demand; file contents and metadata are read after navigation.
-fn sibling_paths(current: &Path) -> Result<Vec<String>, String> {
-    let parent = current.parent().ok_or("找不到父目录")?;
-    let mut paths = Vec::new();
-    for (index, entry) in fs::read_dir(parent).map_err(|e| e.to_string())?.enumerate() {
-        if index >= 10_000 {
-            return Err("目录超过 10000 项，请在文件管理器中选择文件。".into());
-        }
-        let entry = entry.map_err(|e| e.to_string())?;
-        if entry.file_name().to_string_lossy().starts_with('.') {
-            continue;
-        }
-        if entry.file_type().map_err(|e| e.to_string())?.is_file() {
-            paths.push(entry.path().to_string_lossy().into_owned());
-        }
-    }
-    let current = current.to_string_lossy().into_owned();
-    if !paths.contains(&current) {
-        paths.push(current);
-    }
-    Ok(paths)
+#[tauri::command]
+fn cancel_file_navigation() {
+    #[cfg(target_os = "macos")]
+    macos_agent::cancel_navigation();
+    #[cfg(windows)]
+    windows_agent::cancel_navigation();
 }
 
 #[tauri::command]
-async fn list_siblings(
+async fn navigate_file_selection(
+    app: tauri::AppHandle,
     path: String,
+    direction: i32,
     state: State<'_, PreviewState>,
-) -> Result<Vec<String>, String> {
+) -> Result<Option<String>, String> {
+    if direction != -1 && direction != 1 {
+        return Err("无效的切换方向".into());
+    }
     let current = authorized(&path, &state)?;
-    tauri::async_runtime::spawn_blocking(move || sibling_paths(&current))
-        .await
-        .map_err(|e| e.to_string())?
+    #[cfg(target_os = "macos")]
+    return macos_agent::navigate(app, current, direction).await;
+    #[cfg(windows)]
+    return windows_agent::navigate(app, current, direction).await;
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        let _ = (app, current);
+        Err("此平台尚未接入文件管理器视图导航。".into())
+    }
 }
 
 #[tauri::command]
@@ -509,17 +505,18 @@ fn argument_paths(args: impl Iterator<Item = String>) -> Vec<String> {
 #[tauri::command]
 fn initial_paths(state: State<PreviewState>) -> Result<serde_json::Value, String> {
     let mut startup = state.startup.lock().map_err(|error| error.to_string())?;
-    let (paths, text) = startup.1.take().unwrap_or_else(|| {
+    let (paths, text, file_manager) = startup.1.take().unwrap_or_else(|| {
         (
             argument_paths(std::env::args().skip(1)),
             std::env::args().any(|arg| arg == "--text"),
+            false,
         )
     });
     startup.0 = true;
-    Ok(serde_json::json!({ "paths": paths, "text": text }))
+    Ok(serde_json::json!({ "paths": paths, "text": text, "fileManager": file_manager }))
 }
 
-fn show_preview_files(app: &tauri::AppHandle, paths: Vec<String>, text: bool) {
+fn show_preview_files(app: &tauri::AppHandle, paths: Vec<String>, text: bool, file_manager: bool) {
     if let Some(window) = app.get_webview_window("main") {
         // macOS reveals file previews after the WebView resolves their initial size.
         #[cfg(target_os = "macos")]
@@ -537,11 +534,11 @@ fn show_preview_files(app: &tauri::AppHandle, paths: Vec<String>, text: bool) {
                 if startup.0 {
                     let _ = window.emit(
                         "preview-files",
-                        serde_json::json!({ "paths": paths, "text": text }),
+                        serde_json::json!({ "paths": paths, "text": text, "fileManager": file_manager }),
                     );
                 } else {
                     // macOS can deliver Dock/Open With files before the WebView subscribes.
-                    startup.1 = Some((paths, text));
+                    startup.1 = Some((paths, text, file_manager));
                 }
             };
         }
@@ -556,7 +553,7 @@ pub fn run() {
             }
             let text = args.iter().any(|a| a == "--text");
             let paths = argument_paths(args.into_iter().skip(1));
-            show_preview_files(app, paths, text);
+            show_preview_files(app, paths, text, false);
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -569,7 +566,8 @@ pub fn run() {
             read_prefix,
             read_range,
             read_html_resource,
-            list_siblings,
+            navigate_file_selection,
+            cancel_file_navigation,
             list_directory,
             open_default,
             initial_paths,
@@ -654,13 +652,13 @@ pub fn run() {
                         .take(100)
                         .map(|path| path.to_string_lossy().into_owned())
                         .collect();
-                    show_preview_files(app, paths, false);
+                    show_preview_files(app, paths, false, false);
                 }
                 tauri::RunEvent::Reopen {
                     has_visible_windows,
                     ..
                 } if !has_visible_windows => {
-                    show_preview_files(app, Vec::new(), false);
+                    show_preview_files(app, Vec::new(), false, false);
                 }
                 _ => (),
             }
@@ -672,22 +670,6 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn siblings_only_enumerate_regular_visible_files() {
-        let root =
-            std::env::temp_dir().join(format!("spacepreview-siblings-{}", std::process::id()));
-        fs::create_dir_all(root.join("subfolder")).unwrap();
-        for name in ["1.txt", "2.txt", ".hidden.txt"] {
-            fs::write(root.join(name), b"test").unwrap();
-        }
-        let paths = sibling_paths(&root.join("1.txt")).unwrap();
-        assert_eq!(paths.len(), 2);
-        assert!(paths.contains(&root.join("2.txt").to_string_lossy().into_owned()));
-        let hidden = sibling_paths(&root.join(".hidden.txt")).unwrap();
-        assert_eq!(hidden.len(), 3);
-        fs::remove_dir_all(root).unwrap();
-    }
-
     #[test]
     fn bounded_reads_do_not_load_the_whole_file() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");

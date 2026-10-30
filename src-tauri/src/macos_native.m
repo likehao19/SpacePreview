@@ -47,6 +47,48 @@ static id attribute(AXUIElementRef element, CFStringRef name) {
     return CFBridgingRelease(value);
 }
 
+// Retain the original file view, not just Finder's process (tabs share a PID).
+static id navigationView;
+static id focusedFileView(int32_t pid) {
+    AXUIElementRef app = AXUIElementCreateApplication(pid);
+    AXUIElementSetMessagingTimeout(app, 0.05f);
+    id current = attribute(app, kAXFocusedUIElementAttribute);
+    CFRelease(app);
+    for (int depth = 0; current && depth < 16; depth++) {
+        AXUIElementRef element = (__bridge AXUIElementRef)current;
+        AXUIElementSetMessagingTimeout(element, 0.05f);
+        NSString *role = attribute(element, kAXRoleAttribute);
+        if ([@[@"AXTextField", @"AXTextArea", @"AXComboBox"] containsObject:role ?: @""]) return nil;
+        if ([@[@"AXList", @"AXTable", @"AXOutline", @"AXCollection", @"AXBrowser", @"AXLayoutArea"] containsObject:role ?: @""])
+            return current;
+        current = attribute(element, kAXParentAttribute);
+    }
+    return nil;
+}
+void sp_mac_capture_navigation(int32_t pid) { navigationView = focusedFileView(pid); }
+bool sp_mac_navigation_valid(int32_t pid) {
+    id current = focusedFileView(pid);
+    return navigationView && current && CFEqual((__bridge CFTypeRef)navigationView, (__bridge CFTypeRef)current);
+}
+bool sp_mac_navigate(int32_t pid, int32_t direction) {
+    if (!sp_mac_navigation_valid(pid)) return false;
+    CGKeyCode key = direction < 0 ? 126 : 125;
+    CGEventRef down = CGEventCreateKeyboardEvent(NULL, key, true);
+    CGEventRef up = CGEventCreateKeyboardEvent(NULL, key, false);
+    if (!down || !up) {
+        if (down) CFRelease(down);
+        if (up) CFRelease(up);
+        return false;
+    }
+    CGEventSetFlags(down, 0);
+    CGEventSetFlags(up, 0);
+    CGEventPostToPid(pid, down);
+    CGEventPostToPid(pid, up);
+    CFRelease(down);
+    CFRelease(up);
+    return true;
+}
+
 static bool fileAreaHasFocus(void) {
     if (!finderIsFrontmost()) { atomic_store(&lastKeyResult, 1); return false; }
     AXUIElementRef system = AXUIElementCreateApplication(sp_mac_frontmost_pid());
