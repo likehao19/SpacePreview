@@ -8,6 +8,7 @@ export function usePreviewWindow(
   identity: string,
   settingsOpen: boolean,
   kind: string,
+  preserveSize = false,
 ) {
   useEffect(() => {
     if (!enabled) return;
@@ -37,6 +38,20 @@ export function usePreviewWindow(
       }
     };
     const measure = () => {
+      if (preserveSize && identity && !settingsOpen) {
+        if (finished || cancelled) return;
+        finished = true;
+        void win
+          .isVisible()
+          .then(async (visible) => {
+            if (!cancelled && !visible) {
+              await win.show();
+              if (!cancelled) await win.setFocus();
+            }
+          })
+          .catch((error) => console.warn('Preview window reveal failed', error));
+        return;
+      }
       if (finished || cancelled) return;
       if (!identity || settingsOpen) {
         void resize(settingsOpen ? 900 : 720, settingsOpen ? 616 : 436);
@@ -90,5 +105,5 @@ export function usePreviewWindow(
       document.removeEventListener('load', measure, true);
       document.removeEventListener('loadedmetadata', measure, true);
     };
-  }, [enabled, identity, settingsOpen, kind]);
+  }, [enabled, identity, settingsOpen, kind, preserveSize]);
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useReducer, type MouseEvent } from 'react';
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -30,7 +30,9 @@ import FileSearch from './components/FileSearch';
 import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
-import PreviewPreferencesSettings from './components/PreviewPreferences';
+import PreviewPreferencesSettings, { usePreviewPreferences } from './components/PreviewPreferences';
+import { previewTabs, emptyTabs, tabKey } from './lib/preview-tabs';
+import TabReadingPosition, { type ScrollPositions } from './components/TabReadingPosition';
 import { useAppUpdate } from './lib/use-app-update';
 import { version } from '../package.json';
 import { PreviewMenuTarget } from './components/PreviewToolbar';
@@ -81,6 +83,9 @@ type AgentStatus = {
   automation?: boolean;
   keyboard?: boolean;
   lastKeyResult?: number;
+  qspaceInstalled?: boolean;
+  qspaceAutomation?: boolean;
+  qspaceRunning?: boolean;
 };
 const trace = (stage: string) => {
   if (desktop) void invoke('trace_preview', { stage }).catch(() => {});
@@ -131,8 +136,27 @@ const settingsPages = [
 
 export default function App() {
   const updater = useAppUpdate();
-  const [files, setFiles] = useState<PreviewFile[]>([]);
-  const [mode, setMode] = useState<'auto' | 'text' | 'info'>('auto');
+  const { preferences } = usePreviewPreferences();
+  const tabsEnabled = useRef(preferences.tabs);
+  tabsEnabled.current = preferences.tabs;
+  const [tabState, dispatchTab] = useReducer(previewTabs, emptyTabs);
+  const activeTab = tabState.items.find((tab) => tabKey(tab.file) === tabState.active);
+  const files = activeTab ? [activeTab.file] : [];
+  const mode = activeTab?.mode ?? 'auto';
+  const setMode = useCallback(
+    (
+      value:
+        'auto' | 'text' | 'info' | ((mode: 'auto' | 'text' | 'info') => 'auto' | 'text' | 'info'),
+    ) => dispatchTab({ type: 'mode', value }),
+    [],
+  );
+  const setFiles = useCallback((files: PreviewFile[]) => {
+    if (!files.length) dispatchTab({ type: 'clear' });
+  }, []);
+  const positions = useRef<ScrollPositions>(new Map());
+  const sourceEpoch = useRef(0);
+  const hasTabs = useRef(false);
+  hasTabs.current = tabState.items.length > 0;
   const [settings, setSettings] = useState(savedSettings);
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   const macos = agent?.platform === 'macos' || /Mac/i.test(navigator.platform);
@@ -159,13 +183,18 @@ export default function App() {
   const [opening, setOpening] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [menuTarget, setMenuTarget] = useState<HTMLDivElement | null>(null);
-  const [archiveStack, setArchiveStack] = useState<PreviewFile[]>([]);
+  const archiveStack = activeTab?.archive ?? [];
+  const setArchiveStack = useCallback(
+    (value: PreviewFile[] | ((files: PreviewFile[]) => PreviewFile[])) =>
+      dispatchTab({ type: 'archive', value }),
+    [],
+  );
   const input = useRef<HTMLInputElement>(null);
   const request = useRef(0);
   const choosing = useRef(false);
   const navigation = useRef<{ busy: boolean } | null>(null);
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
-  const fileManagerSource = useRef(false);
+
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
   useEffect(() => {
@@ -179,6 +208,7 @@ export default function App() {
     file ? `${file.id}:${mode}:${request.current}` : '',
     settingsOpen,
     mode === 'auto' && file && !file.directory ? detectKind(file.name) : 'text',
+    tabState.items.length > 1,
   );
   useEffect(() => {
     if (!desktop || (file && !settingsOpen)) return;
@@ -303,13 +333,24 @@ export default function App() {
   }, [file?.id]);
 
   const loadFiles = useCallback(
-    (incoming: PreviewFile[], initialMode: 'auto' | 'text' = 'auto') => {
+    (
+      incoming: PreviewFile[],
+      initialMode: 'auto' | 'text' = 'auto',
+      source: number | null = null,
+      replace = false,
+    ) => {
       if (!incoming.length) return;
-      setFiles(incoming.slice(0, 1));
+      dispatchTab({
+        type: 'open',
+        file: incoming[0],
+        mode: initialMode,
+        source,
+        keep: tabsEnabled.current,
+        replace,
+      });
       setPreviewError('');
       setArchiveStack([]);
 
-      setMode(initialMode);
       setSettingsOpen(false);
       setMenuOpen(false);
     },
@@ -319,7 +360,7 @@ export default function App() {
     async (paths: string[], forceText = false, navigating = false, fromFileManager = false) => {
       if (!navigating) {
         navigation.current = null;
-        fileManagerSource.current = fromFileManager;
+        if (fromFileManager) sourceEpoch.current++;
         if (desktop) void invoke('cancel_file_navigation').catch(() => {});
       }
       const version = ++request.current;
@@ -327,14 +368,19 @@ export default function App() {
       try {
         const incoming = await Promise.all(paths.slice(0, 1).map(inspectPath));
         if (version !== request.current) return;
-        loadFiles(incoming, forceText ? 'text' : 'auto');
+        loadFiles(
+          incoming,
+          forceText ? 'text' : 'auto',
+          fromFileManager || navigating ? sourceEpoch.current : null,
+          navigating,
+        );
         trace('loaded');
       } catch (e) {
         trace('load-error');
         if (version === request.current) {
-          if (navigating) {
+          if (navigating || (tabsEnabled.current && hasTabs.current)) {
             navigation.current = null;
-            setToast(`切换文件失败：${String(e)}`);
+            setToast(`文件载入失败：${String(e)}`);
             return;
           }
           setFiles([]);
@@ -355,8 +401,10 @@ export default function App() {
 
   const navigateFile = async (direction: -1 | 1) => {
     if (!desktop || !file?.path || archiveStack.length || opening) return;
-    if (!fileManagerSource.current) {
-      setToast(`请在 ${fileManager} 中选中文件后按预览快捷键，以跟随当前视图切换。`);
+    if (!activeTab?.source || activeTab.source !== sourceEpoch.current) {
+      setToast(
+        `请在 ${macos ? 'Finder 或 QSpace Pro' : fileManager} 中重新选中文件后按预览快捷键，以跟随当前视图切换。`,
+      );
       return;
     }
     if (navigation.current?.busy) return;
@@ -401,12 +449,56 @@ export default function App() {
     navigation.current = null;
     request.current++;
     setFiles([]);
+    positions.current.clear();
     setPreviewError('');
     setArchiveStack([]);
 
     setOpening(false);
     if (desktop) void invoke('hide_preview').catch((error) => setToast(String(error)));
   }, []);
+  const selectTab = (key: string) => {
+    if (key === tabState.active) return;
+    request.current++;
+    navigation.current = null;
+    setOpening(false);
+    setMenuOpen(false);
+    setPreviewError('');
+    if (desktop) void invoke('cancel_file_navigation').catch(() => {});
+    dispatchTab({ type: 'select', key });
+  };
+  const closeTab = (key = tabState.active) => {
+    if (!key) {
+      closePreview();
+      return;
+    }
+    positions.current.delete(key);
+    if (tabState.items.length <= 1) {
+      closePreview();
+      return;
+    }
+    if (key === tabState.active) {
+      request.current++;
+      navigation.current = null;
+      setOpening(false);
+      setMenuOpen(false);
+      setPreviewError('');
+      if (desktop) void invoke('cancel_file_navigation').catch(() => {});
+    }
+    dispatchTab({ type: 'close', key });
+  };
+  useEffect(() => {
+    const keys = new Set(tabState.items.map((tab) => tabKey(tab.file)));
+    for (const key of positions.current.keys()) if (!keys.has(key)) positions.current.delete(key);
+    if (!preferences.tabs && tabState.items.length > 1 && activeTab) {
+      dispatchTab({
+        type: 'open',
+        file: activeTab.file,
+        mode: activeTab.mode,
+        source: activeTab.source,
+        keep: false,
+      });
+    }
+  }, [preferences.tabs, tabState, activeTab]);
   const openFile = useCallback(async () => {
     if (!file) return;
     if (!file.path) {
@@ -619,7 +711,7 @@ export default function App() {
       if (event.key === 'Escape') {
         event.preventDefault();
         if (settingsOpen) setSettingsOpen(false);
-        else closePreview();
+        else closeTab();
       }
       if (
         !(desktop && macos) &&
@@ -643,7 +735,12 @@ export default function App() {
       }
       if (!file) return;
       const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
-      if (plainKey && event.key === 'ArrowLeft' && archiveStack.length) {
+      if (
+        plainKey &&
+        event.key === 'ArrowLeft' &&
+        archiveStack.length &&
+        !(event.target instanceof HTMLElement && event.target.closest('[role="tablist"]'))
+      ) {
         event.preventDefault();
         setArchiveStack((stack) => stack.slice(0, -1));
       }
@@ -682,7 +779,7 @@ export default function App() {
       event.stopPropagation();
       // Keep focus unchanged until the native hook has observed the release.
       if (pending.action === 'text') setMode((m) => (m === 'text' ? 'auto' : 'text'));
-      else if (pending.action === 'close') closePreview();
+      else if (pending.action === 'close') closeTab();
       else void choose();
     };
     window.addEventListener('keydown', keydown, true);
@@ -938,6 +1035,62 @@ export default function App() {
         </div>
       </header>
 
+      {preferences.tabs && tabState.items.length > 0 && !settingsOpen && (
+        <div
+          className="file-tabs"
+          role="tablist"
+          aria-label="文件标签页"
+          onKeyDown={(event) => {
+            if (
+              !(event.target instanceof HTMLElement) ||
+              event.target.getAttribute('role') !== 'tab' ||
+              !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.code)
+            )
+              return;
+            event.preventDefault();
+            event.stopPropagation();
+            const index = tabState.items.findIndex((tab) => tabKey(tab.file) === tabState.active);
+            const next =
+              event.code === 'Home'
+                ? 0
+                : event.code === 'End'
+                  ? tabState.items.length - 1
+                  : (index + (event.code === 'ArrowRight' ? 1 : -1) + tabState.items.length) %
+                    tabState.items.length;
+            selectTab(tabKey(tabState.items[next].file));
+            const target =
+              event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
+            requestAnimationFrame(() => {
+              target?.focus();
+              target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            });
+          }}
+        >
+          {tabState.items.map((tab) => {
+            const key = tabKey(tab.file);
+            return (
+              <div key={key} className={`file-tab ${key === tabState.active ? 'selected' : ''}`}>
+                <button
+                  role="tab"
+                  aria-selected={key === tabState.active}
+                  tabIndex={key === tabState.active ? 0 : -1}
+                  title={tab.file.path || tab.file.name}
+                  onClick={() => selectTab(key)}
+                >
+                  {tab.file.name}
+                </button>
+                <button
+                  aria-label={`关闭标签 ${tab.file.name}`}
+                  title="关闭标签"
+                  onClick={() => closeTab(key)}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {previewError ? (
         <main className="preview-container">
           <UnsupportedPreview message={previewError} />
@@ -946,28 +1099,39 @@ export default function App() {
         <main
           className={`preview-container kind-${mode === 'auto' ? detectKind(file.name) : mode}`}
         >
-          {[files[0], ...archiveStack].map((item, depth) => (
-            <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
-              <PreviewMenuTarget.Provider value={depth === archiveStack.length ? menuTarget : null}>
-                <TextAppearanceProvider
-                  active={depth === archiveStack.length && !settingsOpen && !recording}
+          <TabReadingPosition
+            key={tabState.active!}
+            identity={tabState.active!}
+            positions={positions.current}
+            remember={!archiveStack.length}
+          >
+            {[files[0], ...archiveStack].map((item, depth) => (
+              <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
+                <PreviewMenuTarget.Provider
+                  value={depth === archiveStack.length ? menuTarget : null}
                 >
-                  <FileSearch active={depth === archiveStack.length && !settingsOpen && !recording}>
-                    <Preview
-                      key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
-                      file={item}
-                      mode={depth === archiveStack.length ? mode : 'auto'}
-                      onOpen={(inside) => {
-                        request.current++;
-                        setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
-                        setMode('auto');
-                      }}
-                    />
-                  </FileSearch>
-                </TextAppearanceProvider>
-              </PreviewMenuTarget.Provider>
-            </div>
-          ))}
+                  <TextAppearanceProvider
+                    active={depth === archiveStack.length && !settingsOpen && !recording}
+                  >
+                    <FileSearch
+                      active={depth === archiveStack.length && !settingsOpen && !recording}
+                    >
+                      <Preview
+                        key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
+                        file={item}
+                        mode={depth === archiveStack.length ? mode : 'auto'}
+                        onOpen={(inside) => {
+                          request.current++;
+                          setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
+                          setMode('auto');
+                        }}
+                      />
+                    </FileSearch>
+                  </TextAppearanceProvider>
+                </PreviewMenuTarget.Provider>
+              </div>
+            ))}
+          </TabReadingPosition>
         </main>
       ) : null}
       {macos && !file && !previewError && !settingsOpen && (
@@ -1237,17 +1401,38 @@ export default function App() {
                         </button>
                       </div>
                     )}
+                  {desktop && macos && agent?.qspaceInstalled && (
+                    <div className="mac-permissions">
+                      <strong>QSpace Pro</strong>
+                      <p>
+                        {agent.qspaceRunning
+                          ? '当前面板的快捷键预览已就绪'
+                          : '需单独允许瞬览读取 QSpace Pro 的选中文件。仅支持可读取的本地文件；未授权时保留 QSpace 的原有预览。'}
+                      </p>
+                      {!agent.qspaceRunning && (
+                        <button
+                          onClick={() =>
+                            void invoke('request_agent_permissions', { manager: 'qspace' }).catch(
+                              (error) => setToast(`权限请求失败：${String(error)}`),
+                            )
+                          }
+                        >
+                          授权 QSpace Pro 预览
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {desktop && macos && agent && (
                     <p className="shortcut-help" role="status">
                       最近一次预览按键：
                       {
                         [
                           '尚未收到',
-                          '前台不是 Finder',
-                          'Finder 自动化权限未就绪',
-                          'Finder 焦点读取失败或超时',
+                          '前台不是受支持的文件管理器',
+                          '当前文件管理器自动化权限未就绪',
+                          '文件区焦点读取失败或超时',
                           '焦点在输入框、工具栏或侧边栏',
-                          '未识别到 Finder 文件区',
+                          '未识别到文件区',
                           '已接管',
                         ][agent.lastKeyResult ?? 0]
                       }

@@ -1,3 +1,4 @@
+import ReadingWidth from './ReadingWidth';
 import PreviewToolbar from './PreviewToolbar';
 import { TextAppearanceControls } from './TextAppearance';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -252,25 +253,27 @@ export default function DocumentReader({
       <div className="document-scroll" ref={scroll}>
         <TextAppearanceControls />
         {note && <div className="document-note">{note}</div>}
-        <article
-          className="document-paper prose"
-          style={{
-            fontSize: 'var(--preview-font-size, 16px)',
-            fontFamily: 'var(--preview-font-family, var(--font-reading))',
-          }}
-          onClick={(e) => {
-            const anchor = (e.target as HTMLElement).closest('a');
-            if (anchor) {
-              e.preventDefault();
-              const href = anchor.getAttribute('href');
-              if (href?.startsWith('#reader-heading-'))
-                globalThis.document
-                  .getElementById(href.slice(1))
-                  ?.scrollIntoView({ block: 'start' });
-            }
-          }}
-          dangerouslySetInnerHTML={{ __html: document.html }}
-        />
+        <ReadingWidth kind="reading">
+          <article
+            className="document-paper prose"
+            style={{
+              fontSize: 'var(--preview-font-size, 16px)',
+              fontFamily: 'var(--preview-font-family, var(--font-reading))',
+            }}
+            onClick={(e) => {
+              const anchor = (e.target as HTMLElement).closest('a');
+              if (anchor) {
+                e.preventDefault();
+                const href = anchor.getAttribute('href');
+                if (href?.startsWith('#reader-heading-'))
+                  globalThis.document
+                    .getElementById(href.slice(1))
+                    ?.scrollIntoView({ block: 'start' });
+              }
+            }}
+            dangerouslySetInnerHTML={{ __html: document.html }}
+          />
+        </ReadingWidth>
       </div>
     </ReadingLayout>
   );

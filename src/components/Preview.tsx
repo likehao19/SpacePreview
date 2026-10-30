@@ -1,3 +1,4 @@
+import ReadingWidth from './ReadingWidth';
 import FoldableCode from './FoldableCode';
 import { usePreviewPreferences } from './PreviewPreferences';
 import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
@@ -1120,6 +1121,16 @@ function OfdPreview({ file }: { file: PreviewFile }) {
 
 function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
   const url = useFileUrl(file);
+  const player = useRef<HTMLMediaElement>(null);
+  useEffect(() => {
+    const media = player.current;
+    return () => {
+      if (!media) return;
+      media.pause();
+      media.removeAttribute('src');
+      media.load();
+    };
+  }, [url]);
   const [error, setError] = useState(false);
   return (
     <div className={`media-preview ${audio ? 'audio-preview' : ''}`}>
@@ -1132,10 +1143,27 @@ function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
           </div>
           <h2>{file.name}</h2>
           <p>停下来，听一会儿。</p>
-          {url && <audio autoPlay controls src={url} onError={() => setError(true)} />}
+          {url && (
+            <audio
+              ref={player as React.RefObject<HTMLAudioElement | null>}
+              autoPlay
+              controls
+              src={url}
+              onError={() => setError(true)}
+            />
+          )}
         </>
       ) : (
-        url && <video autoPlay controls playsInline src={url} onError={() => setError(true)} />
+        url && (
+          <video
+            ref={player as React.RefObject<HTMLVideoElement | null>}
+            autoPlay
+            controls
+            playsInline
+            src={url}
+            onError={() => setError(true)}
+          />
+        )
       )}
     </div>
   );
@@ -1459,27 +1487,29 @@ function ParsedPreview({
         </div>
       </PreviewToolbar>
       <div className={`code-scroll ${wrap ? 'wrap' : ''}`}>
-        {continuous ? (
-          <pre className="continuous-pre">
-            {!wrap && (
-              <span className="continuous-line-numbers" aria-hidden="true">
-                {Array.from({ length: result.lines ?? 1 }, (_, i) => i + 1).join('\n')}
-              </span>
-            )}
-            <code
-              ref={continuousCode}
-              className="continuous-content"
-              dangerouslySetInnerHTML={{ __html: result.html || ' ' }}
+        <ReadingWidth kind={plainText ? 'text' : 'code'}>
+          {continuous ? (
+            <pre className="continuous-pre">
+              {!wrap && (
+                <span className="continuous-line-numbers" aria-hidden="true">
+                  {Array.from({ length: result.lines ?? 1 }, (_, i) => i + 1).join('\n')}
+                </span>
+              )}
+              <code
+                ref={continuousCode}
+                className="continuous-content"
+                dangerouslySetInnerHTML={{ __html: result.html || ' ' }}
+              />
+            </pre>
+          ) : (
+            <FoldableCode
+              html={result.html ?? ''}
+              text={result.text ?? ''}
+              language={result.language ?? sourceLanguage(file.name)}
+              query={query}
             />
-          </pre>
-        ) : (
-          <FoldableCode
-            html={result.html ?? ''}
-            text={result.text ?? ''}
-            language={result.language ?? sourceLanguage(file.name)}
-            query={query}
-          />
-        )}
+          )}
+        </ReadingWidth>
       </div>
     </div>
   );

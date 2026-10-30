@@ -80,14 +80,18 @@ fn set_agent_shortcut(shortcut: shortcut::Shortcut) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn request_agent_permissions(app: tauri::AppHandle) -> Result<(), String> {
+fn request_agent_permissions(app: tauri::AppHandle, manager: Option<String>) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        macos_agent::request_permissions(app).map_err(|error| error.to_string())
+        if !matches!(manager.as_deref(), None | Some("finder") | Some("qspace")) {
+            return Err("不支持此文件管理器".into());
+        }
+        macos_agent::request_permissions(app, manager.as_deref() == Some("qspace"))
+            .map_err(|error| error.to_string())
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = app;
+        let _ = (app, manager);
         Ok(())
     }
 }

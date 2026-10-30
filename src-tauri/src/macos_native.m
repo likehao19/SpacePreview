@@ -10,6 +10,8 @@ typedef bool (*SpaceCallback)(uint32_t, uint64_t, int32_t, bool);
 static SpaceCallback spaceCallback;
 static atomic_bool tapRunning = false;
 static atomic_bool automationAllowed = false;
+static atomic_bool qspaceAutomationAllowed = false;
+static NSString *const qspaceBundle = @"com.jinghaoshe.qspace.pro";
 static CFMachPortRef keyboardTap;
 static atomic_uint_fast64_t shortcutConfig = 49;
 static atomic_uint lastKeyResult = 0;
@@ -34,9 +36,8 @@ int32_t sp_mac_frontmost_pid(void) {
     }
 }
 
-static bool finderIsFrontmost(void) {
-    return [NSWorkspace.sharedWorkspace.frontmostApplication.bundleIdentifier
-        isEqualToString:@"com.apple.finder"];
+static bool supportedManager(NSString *bundle) {
+    return [bundle isEqualToString:@"com.apple.finder"] || [bundle isEqualToString:qspaceBundle];
 }
 
 static id attribute(AXUIElementRef element, CFStringRef name) {
@@ -89,8 +90,16 @@ bool sp_mac_navigate(int32_t pid, int32_t direction) {
     return true;
 }
 
+static bool isFileArea(AXUIElementRef element, NSString *role, bool qspace) {
+    if (!qspace) return [@[@"AXList", @"AXTable", @"AXOutline", @"AXCollection", @"AXBrowser", @"AXLayoutArea", @"AXScrollArea"] containsObject:role ?: @""];
+    // QSpace's bookmark sidebar is also an outline; only the file table has columns.
+    if ([@[@"AXOutline", @"AXTable"] containsObject:role ?: @""])
+        return [(NSArray *)attribute(element, kAXColumnsAttribute) count] > 0;
+    return [@[@"AXCollection", @"AXBrowser", @"AXLayoutArea"] containsObject:role ?: @""];
+}
+
 static bool fileAreaHasFocus(void) {
-    if (!finderIsFrontmost()) { atomic_store(&lastKeyResult, 1); return false; }
+    if (!supportedManager(NSWorkspace.sharedWorkspace.frontmostApplication.bundleIdentifier)) { atomic_store(&lastKeyResult, 1); return false; }
     AXUIElementRef system = AXUIElementCreateApplication(sp_mac_frontmost_pid());
     // Query Finder directly; 5 ms was too short for a busy accessibility server.
     AXUIElementSetMessagingTimeout(system, 0.02f);
@@ -118,8 +127,7 @@ static bool fileAreaHasFocus(void) {
             atomic_store(&lastKeyResult, 4);
             return false;
         }
-        if ([@[@"AXList", @"AXTable", @"AXOutline", @"AXCollection", @"AXBrowser", @"AXLayoutArea", @"AXScrollArea"]
-            containsObject:role ?: @""]) {
+        if (isFileArea(element, role, [NSWorkspace.sharedWorkspace.frontmostApplication.bundleIdentifier isEqualToString:qspaceBundle])) {
             fileArea = true;
         }
         if ([role isEqualToString:@"AXWindow"] || [role isEqualToString:@"AXApplication"]) {
@@ -154,7 +162,10 @@ static CGEventRef handleKey(CGEventTapProxy proxy, CGEventType type,
         CGEventFlags flags = CGEventGetFlags(event);
         if (type == kCGEventKeyDown && !repeat &&
             (flags & (kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand)) == (config >> 16)) {
-            if (!atomic_load(&automationAllowed)) atomic_store(&lastKeyResult, 2);
+            NSString *bundle = NSWorkspace.sharedWorkspace.frontmostApplication.bundleIdentifier;
+            bool allowed = [bundle isEqualToString:qspaceBundle] ? atomic_load(&qspaceAutomationAllowed) : atomic_load(&automationAllowed);
+            if (!supportedManager(bundle)) atomic_store(&lastKeyResult, 1);
+            else if (!allowed) atomic_store(&lastKeyResult, 2);
             else if (fileAreaHasFocus()) pid = sp_mac_frontmost_pid();
         }
         return spaceCallback(type, flags, pid, repeat) ? NULL : event;
@@ -207,29 +218,33 @@ void sp_mac_start(SpaceCallback callback) {
     }];
 }
 
-static OSStatus finderPermission(bool prompt) {
+static OSStatus managerPermission(NSString *bundle, bool prompt) {
     NSAppleEventDescriptor *target =
-        [NSAppleEventDescriptor descriptorWithBundleIdentifier:@"com.apple.finder"];
+        [NSAppleEventDescriptor descriptorWithBundleIdentifier:bundle];
     return AEDeterminePermissionToAutomateTarget(target.aeDesc, typeWildCard, typeWildCard, prompt);
 }
 
 uint32_t sp_mac_status(void) {
     @autoreleasepool {
-        bool automation = finderPermission(false) == noErr;
+        bool automation = managerPermission(@"com.apple.finder", false) == noErr;
         atomic_store(&automationAllowed, automation);
+        bool installed = [NSWorkspace.sharedWorkspace URLForApplicationWithBundleIdentifier:qspaceBundle] != nil;
+        bool qspace = installed && managerPermission(qspaceBundle, false) == noErr;
+        atomic_store(&qspaceAutomationAllowed, qspace);
         return (AXIsProcessTrusted() ? 1 : 0) |
             (atomic_load(&tapRunning) ? 2 : 0) |
-            (automation ? 4 : 0);
+            (automation ? 4 : 0) | (qspace ? 8 : 0) | (installed ? 16 : 0);
     }
 }
 
-void sp_mac_request_permissions(void) {
+void sp_mac_request_permissions(bool qspace) {
     @autoreleasepool {
         AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)@{
             (__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES
         });
-        bool automation = finderPermission(true) == noErr;
-        atomic_store(&automationAllowed, automation);
+        bool automation = managerPermission(qspace ? qspaceBundle : @"com.apple.finder", true) == noErr;
+        if (qspace) atomic_store(&qspaceAutomationAllowed, automation);
+        else atomic_store(&automationAllowed, automation);
         // A previously denied permission does not show the system prompt again.
         NSString *pane = !AXIsProcessTrusted() ? @"Privacy_Accessibility"
             : !automation ? @"Privacy_Automation"
@@ -241,9 +256,12 @@ void sp_mac_request_permissions(void) {
     }
 }
 
-char *sp_mac_copy_selection(void) {
+char *sp_mac_copy_selection(int32_t pid) {
     @autoreleasepool {
-        NSAppleScript *script = [[NSAppleScript alloc] initWithSource:
+        NSString *bundle = [NSRunningApplication runningApplicationWithProcessIdentifier:pid].bundleIdentifier;
+        if (!supportedManager(bundle)) return strdup("{\"error\":\"文件管理器已关闭。\"}");
+        bool qspace = [bundle isEqualToString:qspaceBundle];
+        NSString *source =
             @"with timeout of 3 seconds\n"
              "tell application id \"com.apple.finder\"\n"
              "set selectedItems to selection\n"
@@ -256,22 +274,48 @@ char *sp_mac_copy_selection(void) {
              "end repeat\n"
              "return chosenPaths\n"
              "end tell\n"
-             "end timeout"];
+             "end timeout";
+        if (qspace) {
+            // Raw four-character terms come from QSpace 7.0.4's QSpace.sdef.
+            // Bind both window and pane so a different pane can never supply stale selection.
+            source = @"using terms from application id \"com.apple.finder\"\n"
+                "with timeout of 3 seconds\n"
+                "set managerID to \"com.jinghaoshe.qspace.pro\"\n"
+                "tell application id managerID\n"
+                "set sourceWindow to front «class WinD»\n"
+                "set sourcePane to «property AtPn» of sourceWindow\n"
+                "set sourceContext to ((«property ID  » of sourceWindow) as text) & \"/\" & ((«property ID  » of sourcePane) as text)\n"
+                "set selectedItems to every «class SeIt» of sourcePane\n"
+                "set chosenURLs to {}\n"
+                "repeat with i from 1 to (count selectedItems)\n"
+                "if i > 100 then exit repeat\n"
+                "set end of chosenURLs to «property UlSr» of item i of selectedItems\n"
+                "end repeat\n"
+                "return {sourceContext, chosenURLs}\n"
+                "end tell\nend timeout\nend using terms from";
+        }
+        NSAppleScript *script = [[NSAppleScript alloc] initWithSource:source];
         NSDictionary *error = nil;
         NSAppleEventDescriptor *result = [script executeAndReturnError:&error];
         NSDictionary *payload;
         if (!result) {
             NSString *message = [error[NSAppleScriptErrorNumber] intValue] == -1743
-                ? @"请在系统设置 → 隐私与安全性 → 自动化中允许瞬览控制 Finder。"
-                : @"Finder 暂时无法读取所选文件，请确认权限后重试。";
+                ? [NSString stringWithFormat:@"请在系统设置 → 隐私与安全性 → 自动化中允许瞬览控制 %@。", qspace ? @"QSpace Pro" : @"Finder"]
+                : @"文件管理器暂时无法读取所选文件，请确认当前面板和权限后重试。";
             payload = @{@"error": message};
         } else {
+            NSString *context = qspace ? [result descriptorAtIndex:1].stringValue : @"Finder";
+            if (qspace) result = [result descriptorAtIndex:2];
             NSMutableArray<NSString *> *paths = [NSMutableArray array];
             for (NSInteger i = 1; i <= result.numberOfItems && i <= 100; i++) {
                 NSString *path = [result descriptorAtIndex:i].stringValue;
+                if (qspace) {
+                    NSURL *url = path ? [NSURL URLWithString:path] : nil;
+                    path = url.isFileURL ? url.path : nil;
+                }
                 if (path.length) [paths addObject:path];
             }
-            payload = @{@"paths": paths};
+            payload = @{@"paths": paths, @"context": context ?: @""};
         }
         NSData *data = [NSJSONSerialization dataWithJSONObject:payload options:0 error:nil];
         NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
@@ -281,10 +325,10 @@ char *sp_mac_copy_selection(void) {
 
 void sp_mac_free_string(char *value) { free(value); }
 
-void sp_mac_activate_finder(int32_t pid) {
+void sp_mac_activate_manager(int32_t pid) {
     @autoreleasepool {
         NSRunningApplication *finder = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
-        if ([finder.bundleIdentifier isEqualToString:@"com.apple.finder"]) {
+        if (supportedManager(finder.bundleIdentifier)) {
             [finder activateWithOptions:NSApplicationActivateIgnoringOtherApps];
         }
     }
