@@ -87,18 +87,18 @@ SpacePreview 是一款本地文件预览器。在 Windows 资源管理器、桌�
 
 | 平台 | 安装包 | 架构 |
 | --- | --- | --- |
-| Windows | [下载安装程序](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-windows-x64-setup.exe) | x64 |
-| macOS | [下载 Apple 芯片版](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-macos-arm64.dmg) | ARM64 |
-| macOS | [下载 Intel 版](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-macos-x64.dmg) | x86_64 |
-| Linux | [AppImage](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-linux-x64.AppImage) · [DEB](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-linux-x64.deb) | x86_64 |
+| Windows | [下载安装程序](https://github.com/likehao19/SpacePreview/releases/download/v0.10.17/SpacePreview-0.10.17-windows-x64-setup.exe) | x64 |
+| macOS | [下载 Apple 芯片版](https://github.com/likehao19/SpacePreview/releases/download/v0.10.17/SpacePreview-0.10.17-macos-arm64.dmg) | ARM64 |
+| macOS | [下载 Intel 版](https://github.com/likehao19/SpacePreview/releases/download/v0.10.17/SpacePreview-0.10.17-macos-x64.dmg) | x86_64 |
+| Linux | [AppImage](https://github.com/likehao19/SpacePreview/releases/download/v0.10.17/SpacePreview-0.10.17-linux-x64.AppImage) · [DEB](https://github.com/likehao19/SpacePreview/releases/download/v0.10.17/SpacePreview-0.10.17-linux-x64.deb) | x86_64 |
 
-以上为 v0.10.16 的直接下载地址。[官方网站](https://spacepreview.likh.cn/) 可自动获取最新发布版本；更新说明和历史版本也可在 [GitHub Releases](https://github.com/likehao19/SpacePreview/releases) 查看。
+以上为 v0.10.17 的直接下载地址。[官方网站](https://spacepreview.likh.cn/) 可自动获取最新发布版本；更新说明和历史版本也可在 [GitHub Releases](https://github.com/likehao19/SpacePreview/releases) 查看。
 
 ## 安装
 
 ### Windows
 
-下载 `SpacePreview-0.10.16-windows-x64-setup.exe` 并按照安装程序提示操作。当前 Windows 版本支持 Windows 10 / 11 x64，需要 Microsoft Edge WebView2 Runtime。
+下载 `SpacePreview-0.10.17-windows-x64-setup.exe` 并按照安装程序提示操作。当前 Windows 版本支持 Windows 10 / 11 x64，需要 Microsoft Edge WebView2 Runtime。
 
 启动后在资源管理器或桌面选中文件，按 `Space` 即可预览。关闭窗口后应用驻留托盘，右键托盘图标可退出。
 
@@ -119,11 +119,11 @@ Finder 空格预览需要授予辅助功能与 Finder 自动化权限。完整�
 
 ```bash
 # AppImage
-chmod +x SpacePreview-0.10.16-linux-x64.AppImage
-./SpacePreview-0.10.16-linux-x64.AppImage
+chmod +x SpacePreview-0.10.17-linux-x64.AppImage
+./SpacePreview-0.10.17-linux-x64.AppImage
 
 # Debian 系
-sudo apt install ./SpacePreview-0.10.16-linux-x64.deb
+sudo apt install ./SpacePreview-0.10.17-linux-x64.deb
 ```
 
 Linux 当前通过拖入文件或 `Ctrl+O` 预览，暂不支持文件管理器空格唤起。未提供 RPM 或 ARM64 安装包。
