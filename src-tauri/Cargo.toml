@@ -1,6 +1,6 @@
 [package]
 name = "space-preview"
-version = "0.10.17"
+version = "0.10.18"
 description = "A quiet, local-first file previewer"
 authors = ["SpacePreview"]
 edition = "2021"
