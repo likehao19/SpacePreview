@@ -193,6 +193,15 @@ unsafe extern "system" fn keyboard_hook(code: i32, message: WPARAM, data: LPARAM
     CallNextHookEx(None, code, message, data)
 }
 
+unsafe fn focused_window(foreground: HWND) -> Option<HWND> {
+    let mut info = GUITHREADINFO {
+        cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
+        ..Default::default()
+    };
+    GetGUIThreadInfo(GetWindowThreadProcessId(foreground, None), &mut info).ok()?;
+    (!info.hwndFocus.0.is_null()).then_some(info.hwndFocus)
+}
+
 unsafe fn folder_from_browser(
     dispatch: IDispatch,
     foreground: HWND,
@@ -208,7 +217,6 @@ unsafe fn folder_from_browser(
     let browser: IShellBrowser = provider.QueryService(&SID_STopLevelBrowser)?;
     let view = browser.QueryActiveShellView()?;
     let view_window = view.GetWindow()?;
-    // Windows 11 enumerates inactive tabs too. Only the visible Shell view is authoritative.
     if !IsWindowVisible(view_window).as_bool() {
         return Ok(None);
     }
@@ -227,6 +235,14 @@ unsafe fn paths_from_browser(
     let Some((folder, view_window)) = folder_from_browser(dispatch, foreground, desktop)? else {
         return Ok(Vec::new());
     };
+    // Capture only the tab holding keyboard focus. Navigation later uses this
+    // captured view while our preview window owns foreground focus.
+    if !desktop
+        && !focused_window(foreground)
+            .is_some_and(|focus| focus == view_window || IsChild(view_window, focus).as_bool())
+    {
+        return Ok(Vec::new());
+    }
     READ_VIEW.set(view_window.0 as usize);
     if folder.ItemCount(SVGIO_SELECTION)? == 0 {
         return Ok(Vec::new());
