@@ -29,6 +29,7 @@ extern "C" {
 
 static ENABLED: AtomicBool = AtomicBool::new(true);
 static SOURCE_PID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+static SELECTION_ERROR: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 static SOURCE_CONTEXT: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 static NAV_GENERATION: AtomicU64 = AtomicU64::new(0);
 static GENERATION: AtomicU64 = AtomicU64::new(0);
@@ -104,6 +105,7 @@ pub fn status() -> serde_json::Value {
         "qspaceRunning": native & 11 == 11,
         "keyboard": native & 2 != 0,
         "lastKeyResult": unsafe { sp_mac_last_key_result() },
+        "selectionError": SELECTION_ERROR.lock().map(|message| message.clone()).unwrap_or_default(),
     })
 }
 
@@ -169,6 +171,7 @@ fn queue_preview(pid: i32, text: bool) {
         if !current() {
             return;
         }
+        *SELECTION_ERROR.lock().unwrap() = String::new();
         let result = selection(pid);
         if !current() {
             return;
@@ -183,6 +186,7 @@ fn queue_preview(pid: i32, text: bool) {
             }
             Ok(_) => {} // No selection is a normal no-op, not a request for the home window.
             Err(message) => {
+                *SELECTION_ERROR.lock().unwrap() = message.clone();
                 crate::diagnostics::record(format!("selection unavailable: {message}"));
             }
         }

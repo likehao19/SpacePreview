@@ -83,6 +83,7 @@ type AgentStatus = {
   automation?: boolean;
   keyboard?: boolean;
   lastKeyResult?: number;
+  selectionError?: string;
   qspaceInstalled?: boolean;
   qspaceAutomation?: boolean;
   qspaceRunning?: boolean;
@@ -1422,9 +1423,14 @@ export default function App() {
                       )}
                     </div>
                   )}
+                  {desktop && macos && agent?.selectionError && (
+                    <p className="shortcut-help" role="alert">
+                      {agent.selectionError}
+                    </p>
+                  )}
                   {desktop && macos && agent && (
                     <p className="shortcut-help" role="status">
-                      最近一次预览按键：
+                      最近一次文件管理器预览按键：
                       {
                         [
                           '尚未收到',

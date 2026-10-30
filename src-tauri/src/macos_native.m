@@ -15,7 +15,11 @@ static NSString *const qspaceBundle = @"com.jinghaoshe.qspace.pro";
 static CFMachPortRef keyboardTap;
 static atomic_uint_fast64_t shortcutConfig = 49;
 static atomic_uint lastKeyResult = 0;
-uint32_t sp_mac_last_key_result(void) { return atomic_load(&lastKeyResult); }
+static atomic_uint lastManagerKeyResult = 0;
+uint32_t sp_mac_last_key_result(void) {
+    uint32_t manager = atomic_load(&lastManagerKeyResult);
+    return manager ? manager : atomic_load(&lastKeyResult);
+}
 
 // Keep AppKit's rounded frame and shadow while using our compact toolbar.
 void sp_mac_configure_window(void *handle) {
@@ -167,6 +171,7 @@ static CGEventRef handleKey(CGEventTapProxy proxy, CGEventType type,
             if (!supportedManager(bundle)) atomic_store(&lastKeyResult, 1);
             else if (!allowed) atomic_store(&lastKeyResult, 2);
             else if (fileAreaHasFocus()) pid = sp_mac_frontmost_pid();
+            if (supportedManager(bundle)) atomic_store(&lastManagerKeyResult, atomic_load(&lastKeyResult));
         }
         return spaceCallback(type, flags, pid, repeat) ? NULL : event;
     }
@@ -276,16 +281,15 @@ char *sp_mac_copy_selection(int32_t pid) {
              "end tell\n"
              "end timeout";
         if (qspace) {
-            // Raw four-character terms come from QSpace 7.0.4's QSpace.sdef.
-            // Bind both window and pane so a different pane can never supply stale selection.
+            // Read the public selection property. QSpace's bridge rejects element
+            // traversal through a pane property and can stall on nested root URLs.
+            // The retained AX view binds navigation to the original window/pane.
             source = @"using terms from application id \"com.apple.finder\"\n"
                 "with timeout of 3 seconds\n"
                 "set managerID to \"com.jinghaoshe.qspace.pro\"\n"
                 "tell application id managerID\n"
-                "set sourceWindow to front «class WinD»\n"
-                "set sourcePane to «property AtPn» of sourceWindow\n"
-                "set sourceContext to ((«property ID  » of sourceWindow) as text) & \"/\" & ((«property ID  » of sourcePane) as text)\n"
-                "set selectedItems to every «class SeIt» of sourcePane\n"
+                "set sourceContext to \"QSpace Pro\"\n"
+                "set selectedItems to «property sele»\n"
                 "set chosenURLs to {}\n"
                 "repeat with i from 1 to (count selectedItems)\n"
                 "if i > 100 then exit repeat\n"
@@ -302,7 +306,8 @@ char *sp_mac_copy_selection(int32_t pid) {
             NSString *message = [error[NSAppleScriptErrorNumber] intValue] == -1743
                 ? [NSString stringWithFormat:@"请在系统设置 → 隐私与安全性 → 自动化中允许瞬览控制 %@。", qspace ? @"QSpace Pro" : @"Finder"]
                 : @"文件管理器暂时无法读取所选文件，请确认当前面板和权限后重试。";
-            payload = @{@"error": message};
+            NSString *detail = error[NSAppleScriptErrorBriefMessage] ?: @"";
+            payload = @{@"error": [NSString stringWithFormat:@"%@（错误 %@）%@", message, error[NSAppleScriptErrorNumber] ?: @0, detail]};
         } else {
             NSString *context = qspace ? [result descriptorAtIndex:1].stringValue : @"Finder";
             if (qspace) result = [result descriptorAtIndex:2];
