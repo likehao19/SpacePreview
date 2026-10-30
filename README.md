@@ -87,18 +87,18 @@ See the [preview guide](docs/PREVIEW-GUIDE.md), [format list](docs/FORMAT_PARITY
 
 | Platform | Package | Architecture |
 | --- | --- | --- |
-| Windows | [Installer](https://github.com/likehao19/SpacePreview/releases/download/v0.10.15/SpacePreview-0.10.15-windows-x64-setup.exe) | x64 |
-| macOS | [Apple silicon DMG](https://github.com/likehao19/SpacePreview/releases/download/v0.10.15/SpacePreview-0.10.15-macos-arm64.dmg) | ARM64 |
-| macOS | [Intel DMG](https://github.com/likehao19/SpacePreview/releases/download/v0.10.15/SpacePreview-0.10.15-macos-x64.dmg) | x86_64 |
-| Linux | [AppImage](https://github.com/likehao19/SpacePreview/releases/download/v0.10.15/SpacePreview-0.10.15-linux-x64.AppImage) · [DEB](https://github.com/likehao19/SpacePreview/releases/download/v0.10.15/SpacePreview-0.10.15-linux-x64.deb) | x86_64 |
+| Windows | [Installer](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-windows-x64-setup.exe) | x64 |
+| macOS | [Apple silicon DMG](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-macos-arm64.dmg) | ARM64 |
+| macOS | [Intel DMG](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-macos-x64.dmg) | x86_64 |
+| Linux | [AppImage](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-linux-x64.AppImage) · [DEB](https://github.com/likehao19/SpacePreview/releases/download/v0.10.16/SpacePreview-0.10.16-linux-x64.deb) | x86_64 |
 
-These direct links download v0.10.15. The [website](https://spacepreview.likh.cn/) checks the latest release automatically. Release notes and older builds are available on [GitHub Releases](https://github.com/likehao19/SpacePreview/releases).
+These direct links download v0.10.16. The [website](https://spacepreview.likh.cn/) checks the latest release automatically. Release notes and older builds are available on [GitHub Releases](https://github.com/likehao19/SpacePreview/releases).
 
 ## Installation
 
 ### Windows
 
-Download `SpacePreview-0.10.15-windows-x64-setup.exe` and follow the installer. The current release supports Windows 10/11 x64 and requires Microsoft Edge WebView2 Runtime.
+Download `SpacePreview-0.10.16-windows-x64-setup.exe` and follow the installer. The current release supports Windows 10/11 x64 and requires Microsoft Edge WebView2 Runtime.
 
 Start SpacePreview, select a file in Explorer or on the desktop, and press `Space`. Closing the preview leaves the app in the tray; use the tray menu to quit.
 
@@ -119,11 +119,11 @@ Check your architecture with `uname -m`. The current packages target `x86_64`.
 
 ```bash
 # AppImage
-chmod +x SpacePreview-0.10.15-linux-x64.AppImage
-./SpacePreview-0.10.15-linux-x64.AppImage
+chmod +x SpacePreview-0.10.16-linux-x64.AppImage
+./SpacePreview-0.10.16-linux-x64.AppImage
 
 # Debian family
-sudo apt install ./SpacePreview-0.10.15-linux-x64.deb
+sudo apt install ./SpacePreview-0.10.16-linux-x64.deb
 ```
 
 Open files by dragging them in or using `Ctrl+O`. Linux file-manager Space integration, RPM, and ARM64 packages are not currently provided.
