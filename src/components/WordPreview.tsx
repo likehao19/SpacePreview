@@ -9,6 +9,7 @@ import { mountWordScroll } from '../lib/word-scroll';
 import { trackReadingPosition } from '../lib/reading-position';
 import { buildWordOutline } from '../lib/word-outline';
 import { documentError } from '../lib/document-error';
+import { usePreviewState } from './PreviewSession';
 import { forwardPreviewKey } from '../lib/shortcuts';
 import { forwardPreviewWheel } from '../lib/preview-gestures';
 import { PreviewAdjustmentIndicator, usePreviewGestures } from './TextAppearance';
@@ -43,7 +44,7 @@ export default function WordPreview({
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [status, setStatus] = useState('正在读取文档…');
   const [error, setError] = useState('');
-  const [zoom, setZoom] = useState('fit');
+  const [zoom, setZoom] = usePreviewState('word.zoom', 'fit');
   const adjusting = usePreviewGestures(
     useCallback(
       (direction: number) =>
@@ -159,7 +160,7 @@ export default function WordPreview({
       setPage(1);
       const style = target.createElement('style');
       style.textContent =
-        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:24px 20px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{box-shadow:0 2px 12px #00000018,0 0 0 1px #00000006;margin-bottom:24px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
+        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto;scrollbar-color:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:24px 20px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{box-shadow:0 2px 12px #00000018,0 0 0 1px #00000006;margin-bottom:24px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:3px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:0;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
       if (macos)
         style.textContent +=
           '.docx-wrapper{padding:8px}.docx-wrapper>section.docx{border-radius:12px;overflow:hidden;box-shadow:none;margin-bottom:8px}';

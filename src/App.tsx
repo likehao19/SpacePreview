@@ -30,7 +30,9 @@ import FileSearch from './components/FileSearch';
 import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
-import PreviewPreferencesSettings from './components/PreviewPreferences';
+import PreviewPreferencesSettings, { usePreviewPreferences } from './components/PreviewPreferences';
+import PreviewSession from './components/PreviewSession';
+import { usePreviewTabs } from './lib/use-preview-tabs';
 import { useAppUpdate } from './lib/use-app-update';
 import { version } from '../package.json';
 import { PreviewMenuTarget } from './components/PreviewToolbar';
@@ -132,8 +134,19 @@ const settingsPages = [
 
 export default function App() {
   const updater = useAppUpdate();
-  const [files, setFiles] = useState<PreviewFile[]>([]);
-  const [mode, setMode] = useState<'auto' | 'text' | 'info'>('auto');
+  const { preferences } = usePreviewPreferences();
+  const tabPreview = usePreviewTabs(preferences.tabs);
+  const tabCount = useRef(0);
+  tabCount.current = tabPreview.tabs.length;
+  const {
+    files,
+    mode,
+    setMode,
+    archiveStack,
+    setArchiveStack,
+    openFiles,
+    clear: clearTabs,
+  } = tabPreview;
   const [settings, setSettings] = useState(savedSettings);
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   const macos = agent?.platform === 'macos' || /Mac/i.test(navigator.platform);
@@ -158,11 +171,13 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [previewError, setPreviewError] = useState('');
   const [opening, setOpening] = useState(false);
+  const [suspended, setSuspended] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [menuTarget, setMenuTarget] = useState<HTMLDivElement | null>(null);
-  const [archiveStack, setArchiveStack] = useState<PreviewFile[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const request = useRef(0);
+  const initialPaths = useRef<Promise<{ paths: string[]; text: boolean }> | null>(null);
+  const initialHandled = useRef(false);
   const choosing = useRef(false);
   const navigation = useRef<{ paths: string[]; busy: boolean } | null>(null);
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
@@ -172,7 +187,7 @@ export default function App() {
     if (settingsOpen || !file) navigation.current = null;
   }, [settingsOpen, file?.id]);
   usePreviewWindow(
-    desktop && macos && !opening,
+    desktop && macos && !opening && !suspended,
     file ? `${file.id}:${mode}:${request.current}` : '',
     settingsOpen,
     mode === 'auto' && file && !file.directory ? detectKind(file.name) : 'text',
@@ -300,17 +315,18 @@ export default function App() {
   }, [file?.id]);
 
   const loadFiles = useCallback(
-    (incoming: PreviewFile[], initialMode: 'auto' | 'text' = 'auto') => {
+    (incoming: PreviewFile[], initialMode: 'auto' | 'text' = 'auto', replace = false) => {
       if (!incoming.length) return;
-      setFiles(incoming.slice(0, 1));
+      request.current++;
+      spaceAction.current = null;
+      setOpening(false);
+      setSuspended(false);
+      openFiles(incoming, initialMode, replace);
       setPreviewError('');
-      setArchiveStack([]);
-
-      setMode(initialMode);
       setSettingsOpen(false);
       setMenuOpen(false);
     },
-    [],
+    [openFiles],
   );
   const loadPaths = useCallback(
     async (paths: string[], forceText = false, navigating = false) => {
@@ -318,19 +334,21 @@ export default function App() {
       const version = ++request.current;
       setOpening(true);
       try {
-        const incoming = await Promise.all(paths.slice(0, 1).map(inspectPath));
+        const incoming = await Promise.all(
+          (preferences.tabs && !navigating ? paths : paths.slice(0, 1)).map(inspectPath),
+        );
         if (version !== request.current) return;
-        loadFiles(incoming, forceText ? 'text' : 'auto');
+        loadFiles(incoming, forceText ? 'text' : 'auto', navigating);
         trace('loaded');
       } catch (e) {
         trace('load-error');
         if (version === request.current) {
-          if (navigating) {
+          if (navigating || (preferences.tabs && tabCount.current)) {
             navigation.current = null;
             setToast(`切换文件失败：${String(e)}`);
             return;
           }
-          setFiles([]);
+          clearTabs();
           setArchiveStack([]);
           setSettingsOpen(false);
           setPreviewError(String(e));
@@ -343,7 +361,7 @@ export default function App() {
         if (version === request.current) setOpening(false);
       }
     },
-    [loadFiles, macos],
+    [loadFiles, macos, preferences.tabs, clearTabs],
   );
 
   const navigateFile = async (direction: -1 | 1) => {
@@ -388,13 +406,42 @@ export default function App() {
     trace('close');
     navigation.current = null;
     request.current++;
-    setFiles([]);
+    clearTabs();
     setPreviewError('');
     setArchiveStack([]);
 
     setOpening(false);
+    setSuspended(false);
     if (desktop) void invoke('hide_preview').catch((error) => setToast(String(error)));
-  }, []);
+  }, [clearTabs, setArchiveStack]);
+  const activateTab = (id: string) => {
+    request.current++;
+    navigation.current = null;
+    spaceAction.current = null;
+    setOpening(false);
+    setPreviewError('');
+    setMenuOpen(false);
+    tabPreview.select(id);
+  };
+  const closeTab = (id: string) => {
+    if (tabPreview.tabs.length === 1) {
+      closePreview();
+      return;
+    }
+    if (id === tabPreview.activeId) {
+      request.current++;
+      navigation.current = null;
+      spaceAction.current = null;
+      setOpening(false);
+      setMenuOpen(false);
+      setPreviewError('');
+    }
+    tabPreview.close(id);
+  };
+  const closeCurrent = () => {
+    if (preferences.tabs && tabPreview.activeId) closeTab(tabPreview.activeId);
+    else closePreview();
+  };
   const openFile = useCallback(async () => {
     if (!file) return;
     if (!file.path) {
@@ -451,8 +498,12 @@ export default function App() {
     );
     void register(
       listen<string>('agent-selection-error', (event) => {
+        if (preferences.tabs && tabCount.current) {
+          setToast(event.payload);
+          return;
+        }
         request.current++;
-        setFiles([]);
+        clearTabs();
         setArchiveStack([]);
         setSettingsOpen(false);
         setOpening(false);
@@ -465,10 +516,11 @@ export default function App() {
         setSettingsOpen(false);
         setPreviewError('');
         request.current++;
-        setFiles([]);
+        clearTabs();
         setArchiveStack([]);
 
         setOpening(false);
+        setSuspended(false);
       }),
     );
     void register(
@@ -478,9 +530,14 @@ export default function App() {
       }),
     );
     void filesReady
-      .then(() => invoke<{ paths: string[]; text: boolean }>('initial_paths'))
+      .then(
+        () =>
+          (initialPaths.current ??= invoke<{ paths: string[]; text: boolean }>('initial_paths')),
+      )
       .then((initial) => {
-        if (!disposed && initial.paths.length) void loadPaths(initial.paths, initial.text);
+        if (disposed || initialHandled.current) return;
+        initialHandled.current = true;
+        if (initial.paths.length) void loadPaths(initial.paths, initial.text);
       })
       .catch((error) => {
         if (!disposed) setPreviewError(`初始文件读取失败：${String(error)}`);
@@ -496,6 +553,10 @@ export default function App() {
     let stop: (() => void) | undefined;
     void getCurrentWindow()
       .onFocusChanged((e) => {
+        if (e.payload && !disposed) {
+          setSuspended(false);
+          return;
+        }
         if (!e.payload && !disposed && !choosing.current) {
           const version = request.current;
           // A queued blur from hiding the previous preview must not close a new one.
@@ -504,7 +565,14 @@ export default function App() {
             .then((focused) => {
               if (!focused && !disposed && !choosing.current && version === request.current) {
                 trace('blur-close');
-                closePreview();
+                if (preferences.tabs) {
+                  request.current++;
+                  navigation.current = null;
+                  spaceAction.current = null;
+                  setOpening(false);
+                  setSuspended(true);
+                  void invoke('hide_preview').catch((error) => setToast(String(error)));
+                } else closePreview();
               }
             })
             .catch(() => {});
@@ -518,7 +586,7 @@ export default function App() {
       disposed = true;
       stop?.();
     };
-  }, [settings.closeOnBlur, settingsOpen, file, closePreview]);
+  }, [settings.closeOnBlur, settingsOpen, file, closePreview, preferences.tabs]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -627,6 +695,11 @@ export default function App() {
         return;
       }
       if (!file) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="tablist"], [role="separator"]')
+      )
+        return;
       const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
       if (plainKey && event.key === 'ArrowLeft' && archiveStack.length) {
         event.preventDefault();
@@ -667,7 +740,7 @@ export default function App() {
       event.stopPropagation();
       // Keep focus unchanged until the native hook has observed the release.
       if (pending.action === 'text') setMode((m) => (m === 'text' ? 'auto' : 'text'));
-      else if (pending.action === 'close') closePreview();
+      else if (pending.action === 'close') closeCurrent();
       else void choose();
     };
     window.addEventListener('keydown', keydown, true);
@@ -730,7 +803,7 @@ export default function App() {
                 title="返回欢迎页"
                 onClick={() => {
                   request.current++;
-                  setFiles([]);
+                  clearTabs();
                   setArchiveStack([]);
                 }}
               >
@@ -923,12 +996,77 @@ export default function App() {
         </div>
       </header>
 
+      {preferences.tabs && tabPreview.tabs.length > 1 && !settingsOpen && !suspended && (
+        <div
+          className="preview-tabs"
+          role="tablist"
+          aria-label="文件标签页"
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const focusedTab =
+              event.target instanceof Element
+                ? event.target.closest('.preview-tab')?.querySelector('[role="tab"]')
+                : null;
+            const focusedIndex = [
+              ...event.currentTarget.querySelectorAll('[role="tab"]'),
+            ].findIndex((node) => node === focusedTab);
+            const index =
+              focusedIndex >= 0
+                ? focusedIndex
+                : tabPreview.tabs.findIndex((tab) => tab.id === tabPreview.activeId);
+            const next =
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? tabPreview.tabs.length - 1
+                  : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabPreview.tabs.length) %
+                    tabPreview.tabs.length;
+            activateTab(tabPreview.tabs[next].id);
+            const container = event.currentTarget;
+            requestAnimationFrame(() =>
+              container.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus(),
+            );
+          }}
+        >
+          {tabPreview.tabs.map((tab) => (
+            <div
+              className={`preview-tab ${tab.id === tabPreview.activeId ? 'active' : ''}`}
+              key={tab.id}
+            >
+              <button
+                role="tab"
+                aria-selected={tab.id === tabPreview.activeId}
+                aria-controls="preview-panel"
+                tabIndex={tab.id === tabPreview.activeId ? 0 : -1}
+                title={tab.file.path ?? tab.file.name}
+                onClick={() => activateTab(tab.id)}
+              >
+                {tab.file.name}
+              </button>
+              <button
+                className="tab-close"
+                aria-label={`关闭标签 ${tab.file.name}`}
+                onClick={() => closeTab(tab.id)}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {previewError ? (
         <main className="preview-container">
           <UnsupportedPreview message={previewError} />
         </main>
-      ) : file ? (
+      ) : file && !suspended ? (
         <main
+          key={`${tabPreview.activeId}:${files[0]?.modified}`}
+          id="preview-panel"
+          role={preferences.tabs ? 'tabpanel' : undefined}
+          aria-label={preferences.tabs ? files[0].name : undefined}
           className={`preview-container kind-${mode === 'auto' ? detectKind(file.name) : mode}`}
         >
           {[files[0], ...archiveStack].map((item, depth) => (
@@ -938,16 +1076,18 @@ export default function App() {
                   active={depth === archiveStack.length && !settingsOpen && !recording}
                 >
                   <FileSearch active={depth === archiveStack.length && !settingsOpen && !recording}>
-                    <Preview
-                      key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
-                      file={item}
-                      mode={depth === archiveStack.length ? mode : 'auto'}
-                      onOpen={(inside) => {
-                        request.current++;
-                        setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
-                        setMode('auto');
-                      }}
-                    />
+                    <PreviewSession cache={tabPreview.view(item.id)}>
+                      <Preview
+                        key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
+                        file={item}
+                        mode={depth === archiveStack.length ? mode : 'auto'}
+                        onOpen={(inside) => {
+                          request.current++;
+                          setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
+                          setMode('auto');
+                        }}
+                      />
+                    </PreviewSession>
                   </FileSearch>
                 </TextAppearanceProvider>
               </PreviewMenuTarget.Provider>

@@ -17,6 +17,8 @@ export type PreviewPreferences = {
   encoding: TextEncoding;
   html: 'source' | 'web';
   maxPreviewMiB: number;
+  tabs: boolean;
+  readingWidth: number;
 };
 export function parsePreviewPreferences(raw: string | null): PreviewPreferences {
   let value: Partial<PreviewPreferences> = {};
@@ -26,6 +28,13 @@ export function parsePreviewPreferences(raw: string | null): PreviewPreferences 
     /* Use defaults for damaged settings. */
   }
   return {
+    tabs: value.tabs === true,
+    readingWidth:
+      Number.isInteger(value.readingWidth) &&
+      value.readingWidth! >= 360 &&
+      value.readingWidth! <= 2400
+        ? value.readingWidth!
+        : 860,
     maxPreviewMiB:
       Number.isInteger(value.maxPreviewMiB) &&
       value.maxPreviewMiB! >= 16 &&

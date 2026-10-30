@@ -8,6 +8,8 @@ it('restores shared reading preferences from storage', () => {
     encoding: 'gb18030',
     html: 'web',
     maxPreviewMiB: 256,
+    tabs: false,
+    readingWidth: 860,
   };
   expect(parsePreviewPreferences(JSON.stringify(preferences))).toEqual(preferences);
 });
@@ -29,4 +31,16 @@ it('defaults to 256 MiB and rejects unsafe limits', () => {
     expect(parsePreviewPreferences(JSON.stringify({ maxPreviewMiB: value })).maxPreviewMiB).toBe(
       256,
     );
+});
+it('restores bounded reading widths and only enables tabs explicitly', () => {
+  expect(parsePreviewPreferences('{"tabs":true,"readingWidth":1080}')).toMatchObject({
+    tabs: true,
+    readingWidth: 1080,
+  });
+  for (const readingWidth of [0, 359, 2401, 860.5, '1080', null]) {
+    expect(parsePreviewPreferences(JSON.stringify({ tabs: 'true', readingWidth }))).toMatchObject({
+      tabs: false,
+      readingWidth: 860,
+    });
+  }
 });

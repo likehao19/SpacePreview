@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackReadingPosition } from '../lib/reading-position';
 import DOMPurify from 'dompurify';
 import { List, ChevronLeft, Search, X } from 'lucide-react';
+import ReadingWidth from './ReadingWidth';
+import { usePreviewState } from './PreviewSession';
 
 export interface OutlineItem {
   id: string;
@@ -25,10 +27,10 @@ export function ReadingLayout({
   activeId?: string;
   loading?: boolean;
 }) {
-  const [open, setOpen] = useState(() => !/Mac/i.test(navigator.platform));
+  const [open, setOpen] = usePreviewState('outline.open', () => !/Mac/i.test(navigator.platform));
   const [active, setActive] = useState('');
-  const [width, setWidth] = useState(220);
-  const [filter, setFilter] = useState('');
+  const [width, setWidth] = usePreviewState('outline.width', 220);
+  const [filter, setFilter] = usePreviewState('outline.filter', '');
   const nav = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; width: number } | null>(null);
   const current = activeId ?? active;
@@ -249,29 +251,31 @@ export default function DocumentReader({
       }
       toolbar={toolbar}
     >
-      <div className="document-scroll" ref={scroll}>
-        <TextAppearanceControls />
-        {note && <div className="document-note">{note}</div>}
-        <article
-          className="document-paper prose"
-          style={{
-            fontSize: 'var(--preview-font-size, 16px)',
-            fontFamily: 'var(--preview-font-family, var(--font-reading))',
-          }}
-          onClick={(e) => {
-            const anchor = (e.target as HTMLElement).closest('a');
-            if (anchor) {
-              e.preventDefault();
-              const href = anchor.getAttribute('href');
-              if (href?.startsWith('#reader-heading-'))
-                globalThis.document
-                  .getElementById(href.slice(1))
-                  ?.scrollIntoView({ block: 'start' });
-            }
-          }}
-          dangerouslySetInnerHTML={{ __html: document.html }}
-        />
-      </div>
+      <ReadingWidth>
+        <div className="document-scroll" ref={scroll}>
+          <TextAppearanceControls />
+          {note && <div className="document-note">{note}</div>}
+          <article
+            className="document-paper prose"
+            style={{
+              fontSize: 'var(--preview-font-size, 16px)',
+              fontFamily: 'var(--preview-font-family, var(--font-reading))',
+            }}
+            onClick={(e) => {
+              const anchor = (e.target as HTMLElement).closest('a');
+              if (anchor) {
+                e.preventDefault();
+                const href = anchor.getAttribute('href');
+                if (href?.startsWith('#reader-heading-'))
+                  globalThis.document
+                    .getElementById(href.slice(1))
+                    ?.scrollIntoView({ block: 'start' });
+              }
+            }}
+            dangerouslySetInnerHTML={{ __html: document.html }}
+          />
+        </div>
+      </ReadingWidth>
     </ReadingLayout>
   );
 }

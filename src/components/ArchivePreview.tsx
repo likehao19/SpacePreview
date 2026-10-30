@@ -13,6 +13,11 @@ import FileIcon from './FileIcon';
 import { useFileSearch } from './FileSearch';
 import { findText } from '../lib/find';
 import { openArchive } from '../lib/archive-session';
+import PreviewSession, {
+  newSessionCache,
+  usePreviewState,
+  type SessionCache,
+} from './PreviewSession';
 
 function entryReason(entry: ArchiveEntry, maxMiB: number) {
   if (!entry.directory && entry.size > maxMiB * 1024 * 1024) return `超过预览上限 ${maxMiB} MB`;
@@ -36,10 +41,10 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
   const [entries, setEntries] = useState<ArchiveEntry[] | null>(null);
   const [error, setError] = useState('');
   const [entryError, setEntryError] = useState('');
-  const [expanded, setExpanded] = useState(new Set<string>());
-  const [visible, setVisible] = useState<Record<string, number>>({});
+  const [expanded, setExpanded] = usePreviewState('archive.expanded', () => new Set<string>());
+  const [visible, setVisible] = usePreviewState<Record<string, number>>('archive.visible', {});
   const [stack, setStack] = useState<PreviewFile[]>([]);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = usePreviewState('archive.query', '');
   useFileSearch(
     useMemo(
       () =>
@@ -62,7 +67,17 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
     ),
   );
   const [extracting, setExtracting] = useState(false);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = usePreviewState('archive.selected', '');
+  const restoreSelected = useRef(selected);
+  const [childViews] = usePreviewState('archive.views', () => new Map<string, SessionCache>());
+  const childView = (name: string) => {
+    let cache = childViews.get(name);
+    if (!cache) {
+      cache = newSessionCache();
+      childViews.set(name, cache);
+    }
+    return cache;
+  };
   const [reload, setReload] = useState(0);
   const [password, setPassword] = useState('');
   const session = useRef<Awaited<ReturnType<typeof openArchive>> | null>(null);
@@ -97,9 +112,11 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
       setError('');
       setEntries(null);
       setStack([]);
-      setSelected('');
-      setExpanded(new Set());
-      setVisible({});
+      if (reload) {
+        setSelected('');
+        setExpanded(new Set());
+        setVisible({});
+      }
       setEntryError('');
       setExtracting(false);
       if (!zip) {
@@ -194,6 +211,13 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
       if (!controller.signal.aborted) setExtracting(false);
     }
   };
+  useEffect(() => {
+    if (!entries || !restoreSelected.current) return;
+    const id = restoreSelected.current;
+    restoreSelected.current = '';
+    const entry = entries.find((item) => `file:${item.index}:${item.name}` === id);
+    if (entry) void openEntry(entry);
+  }, [entries]);
   const passwordControls = !zip && (
     <PreviewToolbar className="content-toolbar">
       <label className="preview-menu-option">
@@ -282,10 +306,6 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
     <div className="directory-preview archive-tree-preview">
       {passwordControls}
       <aside className="directory-sidebar">
-        <div className="directory-heading">
-          <FolderOpen size={16} />
-          <strong title={file.name}>{file.name}</strong>
-        </div>
         <label className="search archive-tree-search">
           <Search size={14} />
           <input
@@ -375,12 +395,14 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
               <span>{current.name}</span>
             </div>
             <div className="directory-file-preview">
-              <Preview
-                key={current.id}
-                file={current}
-                mode="auto"
-                onOpen={(entry) => setStack((value) => [...value, entry])}
-              />
+              <PreviewSession key={current.id} cache={childView(current.name)}>
+                <Preview
+                  key={current.id}
+                  file={current}
+                  mode="auto"
+                  onOpen={(entry) => setStack((value) => [...value, entry])}
+                />
+              </PreviewSession>
             </div>
           </>
         ) : (

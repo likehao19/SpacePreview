@@ -125,10 +125,6 @@ export default function DirectoryPreview({
   return (
     <div className="directory-preview">
       <aside className="directory-sidebar">
-        <div className="directory-heading">
-          <FolderOpen size={16} />
-          <strong title={file.path}>{file.name}</strong>
-        </div>
         <div
           className="directory-tree"
           role="tree"
