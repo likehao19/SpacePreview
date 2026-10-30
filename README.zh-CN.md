@@ -203,6 +203,12 @@ SpacePreview 使用 Tauri 2 与 Rust、React 19 与 TypeScript、PDF.js、docx-p
         <sub><strong>StackTao</strong></sub>
       </a>
     </td>
+    <td align="center">
+      <a href="https://github.com/973212983">
+        <img src="https://avatars.githubusercontent.com/u/104485059?v=4" width="72" height="72" alt="973212983" /><br />
+        <sub><strong>973212983</strong></sub>
+      </a>
+    </td>
   </tr>
 </table>
 
