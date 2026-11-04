@@ -165,6 +165,23 @@
 .prose img {
   max-width: 100%;
 }
+.reader-image {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.reader-image img {
+  height: auto;
+}
+.reader-image-error:not([hidden]) {
+  display: block;
+  padding: 10px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 13px;
+}
 .prose li + li {
   margin-top: 5px;
 }

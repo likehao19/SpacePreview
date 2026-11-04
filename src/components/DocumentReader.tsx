@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify';
 import { List, ChevronLeft, Search, X } from 'lucide-react';
 import ReadingWidth from './ReadingWidth';
 import { usePreviewState } from './PreviewSession';
+import { markdownImageUrl } from '../lib/markdown-images';
 
 export interface OutlineItem {
   id: string;
@@ -173,11 +174,13 @@ export default function DocumentReader({
   loading = false,
   note,
   toolbar,
+  remoteImages = false,
 }: {
   html: string;
   loading?: boolean;
   note?: string;
   toolbar?: React.ReactNode;
+  remoteImages?: boolean;
 }) {
   const scroll = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState('');
@@ -199,10 +202,28 @@ export default function DocumentReader({
       FORBID_ATTR: ['style', 'srcset'],
     });
     const parsed = new DOMParser().parseFromString(safe, 'text/html');
-    // Keep self-contained raster images; no tracking or filesystem navigation.
+    // Markdown can reference public images. Other document readers retain embedded images.
     parsed.querySelectorAll('img').forEach((img) => {
-      if (!/^data:image\/(png|jpeg|gif|webp);base64,/i.test(img.getAttribute('src') || ''))
+      const source = img.getAttribute('src') || '';
+      if (/^data:image\/(png|jpeg|gif|webp);base64,/i.test(source)) return;
+      const url = remoteImages ? markdownImageUrl(source) : null;
+      if (!url) {
         img.remove();
+        return;
+      }
+      img.src = url;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      const wrapper = parsed.createElement('span');
+      wrapper.className = 'reader-image';
+      const error = parsed.createElement('span');
+      error.className = 'reader-image-error';
+      error.hidden = true;
+      error.setAttribute('role', 'status');
+      error.textContent = `${img.alt || '图片'}加载失败，链接可能已失效或网络不可用。`;
+      img.replaceWith(wrapper);
+      wrapper.append(img, error);
     });
     parsed.querySelectorAll('input').forEach((input) => {
       if (input.type !== 'checkbox') input.remove();
@@ -232,7 +253,7 @@ export default function DocumentReader({
       }
     });
     return { html: parsed.body.innerHTML, outline };
-  }, [html]);
+  }, [html, remoteImages]);
   useEffect(() => {
     if (!scroll.current) return;
     const headings = document.outline.flatMap((item) => {
@@ -270,6 +291,17 @@ export default function DocumentReader({
                   globalThis.document
                     .getElementById(href.slice(1))
                     ?.scrollIntoView({ block: 'start' });
+              }
+            }}
+            onErrorCapture={(event) => {
+              const image = event.target;
+              if (
+                image instanceof HTMLImageElement &&
+                image.parentElement?.classList.contains('reader-image')
+              ) {
+                image.hidden = true;
+                const error = image.nextElementSibling as HTMLElement | null;
+                if (error) error.hidden = false;
               }
             }}
             dangerouslySetInnerHTML={{ __html: document.html }}

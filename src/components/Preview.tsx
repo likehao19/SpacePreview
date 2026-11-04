@@ -1422,13 +1422,14 @@ function ParsedPreview({
   if (
     ['markdown', 'docx', 'odt', 'html', 'fb2', 'notebook', 'asciidoc', 'legacy-doc'].includes(kind)
   ) {
-    // Block active content and remote images; documents cannot fetch tracking resources.
+    // Active content is stripped by the shared reader. Markdown keeps public image links.
     return (
       <>
         {loadingStatus}
         <DocumentReader
           loading={backgroundLoading}
           html={result.html ?? ''}
+          remoteImages={kind === 'markdown'}
           toolbar={
             <>
               <span className="reading-label">
