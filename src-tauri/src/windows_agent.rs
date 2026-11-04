@@ -71,6 +71,23 @@ thread_local! { static SHORTCUT_CONFIG: Cell<u32> = const { Cell::new(32 | (49 <
 pub fn set_enabled(enabled: bool) {
     ENABLED.store(enabled, Ordering::Relaxed);
 }
+pub fn is_enabled() -> bool {
+    ENABLED.load(Ordering::Relaxed)
+}
+
+pub fn external_source(handle: usize) {
+    cancel_navigation();
+    SOURCE_VIEW.store(0, Ordering::Relaxed);
+    unsafe {
+        let source = HWND(handle as *mut _);
+        let mut process = 0;
+        GetWindowThreadProcessId(source, Some(&mut process));
+        if process != std::process::id() {
+            SOURCE_WINDOW.store(handle, Ordering::Relaxed);
+        }
+        crate::diagnostics::record(format!("external source class={}", class_name(source)));
+    }
+}
 pub fn status() -> serde_json::Value {
     serde_json::json!({"supported": true, "enabled": ENABLED.load(Ordering::Relaxed), "running": RUNNING.load(Ordering::Relaxed) && COM_READY.load(Ordering::Relaxed)})
 }

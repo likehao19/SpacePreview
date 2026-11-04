@@ -61,11 +61,39 @@ export interface WorkerRequest {
   page?: number;
   fileSize?: number;
 }
+export interface WorkbookCellStyle {
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: string;
+  color?: string;
+  backgroundColor?: string;
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  whiteSpace?: 'pre' | 'pre-wrap';
+  borderTop?: string;
+  borderRight?: string;
+  borderBottom?: string;
+  borderLeft?: string;
+}
+export interface WorkbookMerge {
+  row: number;
+  column: number;
+  rows: number;
+  columns: number;
+}
 export interface WorkbookSheet {
   name: string;
   rows: string[][];
   columns: number;
   truncated: boolean;
+  styles?: WorkbookCellStyle[];
+  cellStyles?: number[][];
+  rowHeights?: Record<number, number>;
+  columnWidths?: Record<number, number>;
+  defaultRowHeight?: number;
+  merges?: WorkbookMerge[];
 }
 export interface WorkerResult {
   units?: { path: string; name: string }[];

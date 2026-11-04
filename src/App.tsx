@@ -346,7 +346,13 @@ export default function App() {
     [openFiles],
   );
   const loadPaths = useCallback(
-    async (paths: string[], forceText = false, navigating = false, fromFileManager = false) => {
+    async (
+      paths: string[],
+      forceText = false,
+      navigating = false,
+      fromFileManager = false,
+      replaceCurrent = navigating,
+    ) => {
       if (!navigating) {
         navigation.current = null;
         if (fromFileManager) sourceEpoch.current++;
@@ -356,13 +362,13 @@ export default function App() {
       setOpening(true);
       try {
         const incoming = await Promise.all(
-          (preferences.tabs && !navigating ? paths : paths.slice(0, 1)).map(inspectPath),
+          (preferences.tabs && !replaceCurrent ? paths : paths.slice(0, 1)).map(inspectPath),
         );
         if (version !== request.current) return;
         loadFiles(
           incoming,
           forceText ? 'text' : 'auto',
-          navigating,
+          replaceCurrent,
           fromFileManager || navigating ? sourceEpoch.current : null,
         );
         trace('loaded');
@@ -477,6 +483,25 @@ export default function App() {
     if (preferences.tabs && tabPreview.activeId) closeTab(tabPreview.activeId);
     else closePreview();
   };
+  useEffect(() => {
+    if (!desktop) return;
+    const stop = listen<{ action: 'toggle' | 'switch' | 'close'; path: string; visible: boolean }>(
+      'external-preview',
+      ({ payload }) => {
+        if (
+          payload.action === 'close' ||
+          (payload.action === 'toggle' && payload.visible && file?.path === payload.path)
+        ) {
+          closePreview();
+        } else if (payload.action !== 'switch' || file) {
+          void loadPaths([payload.path], false, false, false, payload.action === 'switch');
+        }
+      },
+    );
+    return () => {
+      void stop.then((unlisten) => unlisten());
+    };
+  }, [file?.path, closePreview, loadPaths]);
   const openFile = useCallback(async () => {
     if (!file) return;
     if (!file.path) {

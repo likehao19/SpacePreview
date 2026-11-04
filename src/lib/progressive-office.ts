@@ -26,7 +26,13 @@ export async function readStructuredInStages(
   const entries = listed.entries!;
   const metadata =
     kind === 'xlsx'
-      ? ['xl/workbook.xml', 'xl/_rels/workbook.xml.rels', 'xl/styles.xml', 'xl/sharedStrings.xml']
+      ? [
+          'xl/workbook.xml',
+          'xl/_rels/workbook.xml.rels',
+          'xl/styles.xml',
+          'xl/sharedStrings.xml',
+          'xl/theme/theme1.xml',
+        ]
       : kind === 'pptx'
         ? ['ppt/presentation.xml', 'ppt/_rels/presentation.xml.rels']
         : ['META-INF/container.xml'];

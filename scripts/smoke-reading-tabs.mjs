@@ -352,6 +352,43 @@ try {
     ).toBe(1);
     await native.evaluate(() => window.emitNative('preview-closed', null));
     await expect(native.locator('.preview-tabs')).toHaveCount(0);
+    await native.evaluate(() =>
+      window.emitNative('external-preview', {
+        action: 'toggle',
+        path: 'C:/tests/a.txt',
+        visible: false,
+      }),
+    );
+    await expect(native.locator('.code-scroll')).toContainText('a.txt');
+    await native.evaluate(() =>
+      window.emitNative('external-preview', {
+        action: 'switch',
+        path: 'C:/tests/b.txt',
+        visible: true,
+      }),
+    );
+    await expect(native.locator('.code-scroll')).toContainText('b.txt');
+    await expect(native.locator('.preview-tabs')).toHaveCount(0);
+    await native.evaluate(() =>
+      window.emitNative('external-preview', {
+        action: 'toggle',
+        path: 'C:/tests/b.txt',
+        visible: true,
+      }),
+    );
+    await expect(native.locator('.preview-layer')).toHaveCount(0);
+    await native.evaluate(() =>
+      window.emitNative('external-preview', {
+        action: 'toggle',
+        path: 'C:/tests/a.txt',
+        visible: false,
+      }),
+    );
+    await expect(native.locator('.code-scroll')).toContainText('a.txt');
+    await native.evaluate(() =>
+      window.emitNative('external-preview', { action: 'close', path: '', visible: true }),
+    );
+    await expect(native.locator('.preview-layer')).toHaveCount(0);
     await native.close();
   }
   console.log(

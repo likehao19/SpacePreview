@@ -1,11 +1,12 @@
 import PreviewToolbar from './PreviewToolbar';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useFileSearch, type SearchHit } from './FileSearch';
 import { findText } from '../lib/find';
 import { ChevronLeft, ChevronRight, Table2 } from 'lucide-react';
 import type { WorkerResult } from '../lib/worker-types';
 import { usePreviewState } from './PreviewSession';
 import { TextAppearanceControls, useTextAppearance } from './TextAppearance';
+import { workbookRowOffsets, workbookRowAt, visibleWorkbookMerges } from '../lib/workbook-layout';
 
 function columnName(index: number): string {
   let name = '';
@@ -17,9 +18,15 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
   const { size } = useTextAppearance();
   const rowHeight = Math.max(32, Math.ceil(size * 1.5 + 8));
   const [selected, setSelected] = usePreviewState('office.selected', 0);
+  const scale = size / 16;
+  const sheet = result.sheets?.[selected];
+  const rowOffsets = useMemo(
+    () => workbookRowOffsets(sheet, rowHeight, scale),
+    [sheet, rowHeight, scale],
+  );
   const [start, setStart] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
-  const previousHeight = useRef(rowHeight);
+  const previousLayout = useRef({ sheet, offsets: rowOffsets });
   const scrollPosition = useRef(0);
   useFileSearch(
     useMemo(
@@ -40,7 +47,8 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
                     setStart(Math.max(0, row - 3));
                     await new Promise((resolve) => requestAnimationFrame(resolve));
                     if (navigationSignal.aborted || !scroller.current) return;
-                    scroller.current.scrollTop = row * rowHeight;
+                    const offsets = workbookRowOffsets(sheet, rowHeight, scale);
+                    scroller.current.scrollTop = offsets[row];
                     await new Promise((resolve) => requestAnimationFrame(resolve));
                     if (!navigationSignal.aborted)
                       scroller.current
@@ -62,22 +70,42 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
           return matches;
         },
       }),
-      [result, rowHeight],
+      [result, rowHeight, scale],
     ),
   );
   useLayoutEffect(() => {
-    if (scroller.current && rowHeight !== previousHeight.current) {
-      scroller.current.scrollTop = (scrollPosition.current / previousHeight.current) * rowHeight;
+    const previous = previousLayout.current;
+    if (
+      scroller.current &&
+      sheet?.rows.length &&
+      previous.sheet === sheet &&
+      previous.offsets !== rowOffsets
+    ) {
+      const row = workbookRowAt(previous.offsets, scrollPosition.current);
+      const height = previous.offsets[row + 1] - previous.offsets[row];
+      const fraction = height ? (scrollPosition.current - previous.offsets[row]) / height : 0;
+      scroller.current.scrollTop =
+        rowOffsets[row] + fraction * (rowOffsets[row + 1] - rowOffsets[row]);
       scrollPosition.current = scroller.current.scrollTop;
-      setStart(Math.max(0, Math.floor(scroller.current.scrollTop / rowHeight) - 3));
+      setStart(Math.max(0, workbookRowAt(rowOffsets, scroller.current.scrollTop) - 3));
     }
-    previousHeight.current = rowHeight;
-  }, [rowHeight]);
+    previousLayout.current = { sheet, offsets: rowOffsets };
+  }, [sheet, rowOffsets]);
   if (result.sheets) {
-    const sheet = result.sheets[selected];
     if (!sheet) return <div className="preview-message">工作簿没有可显示的工作表。</div>;
     const columns = Math.max(sheet.columns, 1);
-    const end = Math.min(sheet.rows.length, start + 50);
+    const first = Math.min(start, Math.max(0, sheet.rows.length - 1));
+    const end = Math.min(
+      sheet.rows.length,
+      Math.max(
+        first + 50,
+        workbookRowAt(
+          rowOffsets,
+          scrollPosition.current + (scroller.current?.clientHeight ?? 800),
+        ) + 5,
+      ),
+    );
+    const merges = visibleWorkbookMerges(sheet.merges ?? [], first, end, rowOffsets);
     return (
       <div className="workbook-preview">
         <TextAppearanceControls />
@@ -99,10 +127,32 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
           }
           onScroll={(e) => {
             scrollPosition.current = e.currentTarget.scrollTop;
-            setStart(Math.max(0, Math.floor(scrollPosition.current / rowHeight) - 3));
+            setStart(Math.max(0, workbookRowAt(rowOffsets, scrollPosition.current) - 3));
           }}
         >
-          <table className="workbook-table">
+          <table
+            className={`workbook-table${sheet.styles?.length ? ' workbook-styled' : ''}`}
+            style={{
+              width:
+                45 +
+                Array.from(
+                  { length: columns },
+                  (_, col) => (sheet.columnWidths?.[col] ?? 130) * scale,
+                ).reduce((sum, width) => sum + width, 0),
+            }}
+          >
+            <colgroup>
+              <col style={{ width: 45 }} />
+              {Array.from({ length: columns }, (_, col) => (
+                <col
+                  key={col}
+                  style={{
+                    width: (sheet.columnWidths?.[col] ?? 130) * scale,
+                    visibility: sheet.columnWidths?.[col] === 0 ? 'collapse' : undefined,
+                  }}
+                />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <th />
@@ -114,34 +164,75 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
               </tr>
             </thead>
             <tbody>
-              {start > 0 && (
+              {first > 0 && (
                 <tr aria-hidden="true">
                   <td
                     colSpan={columns + 1}
-                    style={{ height: start * rowHeight, padding: 0, border: 0 }}
+                    style={{ height: rowOffsets[first], padding: 0, border: 0 }}
                   />
                 </tr>
               )}
-              {sheet.rows.slice(start, end).map((row, offset) => (
-                <tr key={start + offset}>
-                  <th>{start + offset + 1}</th>
-                  {Array.from({ length: columns }, (_, col) => (
-                    <td
-                      key={col}
-                      title={row[col] ?? ''}
-                      data-search-row={start + offset}
-                      data-search-column={col}
-                    >
-                      {row[col] ?? ''}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {sheet.rows.slice(first, end).map((row, offset) => {
+                const rowIndex = first + offset;
+                const height = rowOffsets[rowIndex + 1] - rowOffsets[rowIndex];
+                return (
+                  <tr key={rowIndex} style={{ height, display: height ? undefined : 'none' }}>
+                    <th style={{ height }}>{rowIndex + 1}</th>
+                    {Array.from({ length: columns }, (_, col) => {
+                      const key = `${rowIndex}:${col}`;
+                      const merge = merges.anchors.get(key);
+                      if (merges.covered.has(key) && !merge) return null;
+                      const sourceRow = merge?.row ?? rowIndex;
+                      const sourceColumn = merge?.column ?? col;
+                      const value = sheet.rows[sourceRow]?.[sourceColumn] ?? '';
+                      const style =
+                        sheet.styles?.[sheet.cellStyles?.[sourceRow]?.[sourceColumn] ?? 0];
+                      const rowSpan = merge ? Math.min(end, merge.row + merge.rows) - rowIndex : 1;
+                      const cellHeight = rowOffsets[rowIndex + rowSpan] - rowOffsets[rowIndex];
+                      const cellStyle: CSSProperties = {
+                        ...style,
+                        fontSize: style?.fontSize ? style.fontSize * scale : undefined,
+                        height: cellHeight,
+                      };
+                      return (
+                        <td
+                          key={col}
+                          title={value}
+                          style={cellStyle}
+                          rowSpan={rowSpan}
+                          colSpan={merge?.columns ?? 1}
+                          data-search-row={sourceRow}
+                          data-search-column={col}
+                        >
+                          <div
+                            className="workbook-cell"
+                            style={{
+                              height: cellHeight - 1,
+                              justifyContent:
+                                style?.verticalAlign === 'top'
+                                  ? 'flex-start'
+                                  : style?.verticalAlign === 'middle'
+                                    ? 'center'
+                                    : 'flex-end',
+                            }}
+                          >
+                            {value}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
               {end < sheet.rows.length && (
                 <tr aria-hidden="true">
                   <td
                     colSpan={columns + 1}
-                    style={{ height: (sheet.rows.length - end) * rowHeight, padding: 0, border: 0 }}
+                    style={{
+                      height: rowOffsets[sheet.rows.length] - rowOffsets[end],
+                      padding: 0,
+                      border: 0,
+                    }}
                   />
                 </tr>
               )}

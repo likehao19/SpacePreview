@@ -37,17 +37,37 @@ export async function readLegacyWorkbook(
     type: text ? 'binary' : 'array',
     dense: true,
     cellDates: false,
+    cellStyles: true,
     WTF: true,
   });
   const sheets: WorkbookSheet[] = [];
   for (const name of book.SheetNames) {
-    const rows = utils.sheet_to_json<string[]>(book.Sheets[name], {
+    const worksheet = book.Sheets[name];
+    const rows = utils.sheet_to_json<string[]>(worksheet, {
       header: 1,
       raw: false,
       defval: '',
     });
     const columns = rows.reduce((maximum, row) => Math.max(maximum, row.length), 0);
-    sheets.push({ name, rows, columns, truncated: false });
+    const rowHeights = Object.fromEntries(
+      (worksheet['!rows'] ?? []).flatMap((row, index) =>
+        row && (row.hidden || row.hpx || row.hpt)
+          ? [[index, row.hidden ? 0 : (row.hpx ?? (row.hpt! * 4) / 3)]]
+          : [],
+      ),
+    );
+    const columnWidths = Object.fromEntries(
+      (worksheet['!cols'] ?? []).flatMap((column, index) =>
+        column ? [[index, column.hidden ? 0 : (column.wpx ?? (column.wch ?? 18) * 7 + 5)]] : [],
+      ),
+    );
+    const merges = (worksheet['!merges'] ?? []).map(({ s, e }) => ({
+      row: s.r,
+      column: s.c,
+      rows: e.r - s.r + 1,
+      columns: e.c - s.c + 1,
+    }));
+    sheets.push({ name, rows, columns, truncated: false, rowHeights, columnWidths, merges });
     publish?.(sheets);
   }
   return sheets;

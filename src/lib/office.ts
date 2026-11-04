@@ -2,6 +2,8 @@ import { XMLParser } from 'fast-xml-parser';
 import { strFromU8 } from 'fflate';
 import { listZip, extractZipEntries } from './archive';
 import type { WorkbookSheet } from './worker-types';
+import { workbookStyles } from './workbook-styles';
+import { SSF } from 'xlsx';
 
 // OOXML is untrusted: return plain data, reject entities, and bound expanded XML.
 const parser = new XMLParser({
@@ -96,12 +98,15 @@ export function readWorkbook(bytes: Uint8Array, selected?: number): WorkbookShee
   const rels = asArray<any>(read('xl/_rels/workbook.xml.rels').Relationships?.Relationship);
   const shared = asArray(read('xl/sharedStrings.xml').sst?.si).map(textOf);
   const styles = read('xl/styles.xml').styleSheet;
+  const cellFormats = workbookStyles(styles, read('xl/theme/theme1.xml').theme);
+  const rightAlignedFormats = new Map<number, number>();
+  const customFormats = new Map<number, string>(
+    asArray<any>(styles?.numFmts?.numFmt).map((format) => [
+      Number(format['@_numFmtId']),
+      String(format['@_formatCode']),
+    ]),
+  );
   const formats = asArray<any>(styles?.cellXfs?.xf).map((x) => Number(x['@_numFmtId']));
-  const dateFormats = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
-  for (const format of asArray<any>(styles?.numFmts?.numFmt)) {
-    if (/[ymdhis]/i.test(String(format['@_formatCode']).replace(/"[^"]*"|\[[^\]]*\]/g, '')))
-      dateFormats.add(Number(format['@_numFmtId']));
-  }
   const sheets = asArray<any>(workbook.sheets?.sheet);
   if (sheets.length > 100) throw new Error('工作簿超过 100 个工作表。');
   return sheets
@@ -114,6 +119,9 @@ export function readWorkbook(bytes: Uint8Array, selected?: number): WorkbookShee
         ? read(partPath('xl', relationship['@_Target'])).worksheet
         : null;
       const rows: string[][] = [];
+      const cellStyles: number[][] = [];
+      const rowHeights: Record<number, number> = {};
+      const columnWidths: Record<number, number> = {};
       let columns = 0;
       let truncated = false;
       for (const row of asArray<any>(worksheet?.sheetData?.row)) {
@@ -123,6 +131,11 @@ export function readWorkbook(bytes: Uint8Array, selected?: number): WorkbookShee
           continue;
         }
         const cells: string[] = [];
+        const rowStyles: number[] = [];
+        const height = Number(row['@_ht']);
+        if (row['@_hidden'] === '1') rowHeights[rowIndex] = 0;
+        else if (Number.isFinite(height) && height > 0)
+          rowHeights[rowIndex] = Math.min(4096, (height * 4) / 3);
         for (const cell of asArray<any>(row.c)) {
           const index = cell['@_r'] ? columnIndex(cell['@_r']) : cells.length;
           if (index < 0 || index >= 100) {
@@ -130,38 +143,86 @@ export function readWorkbook(bytes: Uint8Array, selected?: number): WorkbookShee
             continue;
           }
           let value = textOf(cell.v);
+          const styleIndex = Number(cell['@_s'] ?? row['@_s'] ?? 0);
+          rowStyles[index] =
+            Number.isSafeInteger(styleIndex) && cellFormats[styleIndex] ? styleIndex : 0;
           if (cell['@_t'] === 's') value = shared[Number(value)] ?? '';
           else if (cell['@_t'] === 'inlineStr') value = textOf(cell.is);
           else if (cell['@_t'] === 'b') value = value === '1' ? 'TRUE' : 'FALSE';
           else if (
             value &&
-            dateFormats.has(formats[Number(cell['@_s'] ?? 0)]) &&
+            (!cell['@_t'] || cell['@_t'] === 'n') &&
             Number.isFinite(Number(value))
           ) {
-            const serial = Number(value);
-            const base =
-              workbook.workbookPr?.['@_date1904'] === '1'
-                ? Date.UTC(1904, 0, 1)
-                : Date.UTC(1899, 11, serial < 60 ? 31 : 30);
-            const date = new Date(base + serial * 86400000);
-            if (Number.isFinite(date.getTime()))
-              value = date
-                .toISOString()
-                .replace('T', ' ')
-                .replace(/ 00:00:00.000Z$/, '')
-                .replace(/.000Z$/, '');
+            const numberFormat = formats[styleIndex];
+            try {
+              value = SSF.format(
+                customFormats.get(numberFormat) ?? numberFormat ?? 0,
+                Number(value),
+                { date1904: ['1', 'true'].includes(String(workbook.workbookPr?.['@_date1904'])) },
+              );
+            } catch {
+              /* Retain the saved value for unsupported number formats. */
+            }
           }
           if ('f' in cell && !('v' in cell)) value = '（公式无缓存结果）';
+          if (
+            (!cell['@_t'] || cell['@_t'] === 'n') &&
+            textOf(cell.v) &&
+            cellFormats[styleIndex] &&
+            !cellFormats[styleIndex].textAlign
+          ) {
+            if (!rightAlignedFormats.has(styleIndex)) {
+              rightAlignedFormats.set(styleIndex, cellFormats.length);
+              cellFormats.push({ ...cellFormats[styleIndex], textAlign: 'right' });
+            }
+            rowStyles[index] = rightAlignedFormats.get(styleIndex)!;
+          }
           cells[index] = value;
           columns = Math.max(columns, index + 1);
         }
         rows[rowIndex] = cells;
+        cellStyles[rowIndex] = rowStyles;
       }
+      for (const column of asArray<any>(worksheet?.cols?.col)) {
+        const width =
+          column['@_hidden'] === '1'
+            ? 0
+            : Math.max(8, Math.min(2000, (Number(column['@_width']) || 8.43) * 7 + 5));
+        const first = Math.max(0, Number(column['@_min']) - 1);
+        const last = Math.min(99, Number(column['@_max']) - 1);
+        for (let index = first; index <= last; index++) columnWidths[index] = width;
+      }
+      const merges = asArray<any>(worksheet?.mergeCells?.mergeCell).flatMap((entry) => {
+        const match = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i.exec(String(entry['@_ref']));
+        if (!match) return [];
+        const row = Number(match[2]) - 1,
+          column = columnIndex(match[1]);
+        const lastRow = Math.min(4999, Number(match[4]) - 1),
+          lastColumn = Math.min(99, columnIndex(match[3]));
+        if (row < 0 || row > lastRow || column < 0 || column > lastColumn) return [];
+        if (Number(match[4]) > 5000 || columnIndex(match[3]) >= 100) truncated = true;
+        while (rows.length <= lastRow) rows.push([]);
+        columns = Math.max(columns, lastColumn + 1);
+        return [{ row, column, rows: lastRow - row + 1, columns: lastColumn - column + 1 }];
+      });
       return {
         name: String(sheet['@_name'] ?? 'Sheet'),
         rows: Array.from({ length: rows.length }, (_, i) => rows[i] ?? []),
         columns,
         truncated,
+        styles: cellFormats.length ? cellFormats : undefined,
+        cellStyles,
+        rowHeights,
+        columnWidths,
+        defaultRowHeight: Math.max(
+          16,
+          Math.min(
+            4096,
+            ((Number(worksheet?.sheetFormatPr?.['@_defaultRowHeight']) || 15) * 4) / 3,
+          ),
+        ),
+        merges,
       };
     });
 }

@@ -37,6 +37,8 @@ mod macos_gesture;
 #[cfg(target_os = "macos")]
 mod macos_menu;
 #[cfg(windows)]
+mod quicklook_pipe;
+#[cfg(windows)]
 mod windows_agent;
 #[cfg(windows)]
 mod windows_icons;
@@ -589,6 +591,8 @@ pub fn run() {
             diagnostics::start();
             #[cfg(windows)]
             windows_agent::start(app.handle().clone());
+            #[cfg(windows)]
+            quicklook_pipe::start(app.handle().clone());
             #[cfg(target_os = "macos")]
             {
                 macos_agent::start(app.handle().clone());

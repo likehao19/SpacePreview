@@ -2106,6 +2106,32 @@ button:disabled:hover {
 .workbook-table td {
   font-variant-numeric: tabular-nums;
 }
+.workbook-cell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.workbook-styled {
+  min-width: 0;
+  color: #000;
+  background: #fff;
+}
+.workbook-styled th,
+.workbook-styled td {
+  min-width: 0;
+  max-width: none;
+}
+.workbook-styled td {
+  padding: 0;
+}
+.workbook-styled .workbook-cell {
+  padding: 0 4px;
+}
+.workbook-styled tbody tr:nth-child(even) td,
+.workbook-styled tbody tr:hover td {
+  background: #fff;
+}
 .book-preview {
   display: flex;
   flex-direction: column;
