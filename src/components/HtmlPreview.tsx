@@ -109,7 +109,7 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
       doc.head.prepend(policy);
       const scrollStyle = doc.createElement('style');
       scrollStyle.textContent =
-        'html,*{scrollbar-width:auto;scrollbar-color:#9aa3b2 transparent}@supports selector(::-webkit-scrollbar){html,*{scrollbar-width:auto;scrollbar-color:auto}}::-webkit-scrollbar{width:10px!important;height:10px!important}::-webkit-scrollbar-thumb{min-height:32px;min-width:32px;background:#9aa3b2!important;border:0!important;background-clip:padding-box!important;border-radius:8px!important}::-webkit-scrollbar-thumb:hover,::-webkit-scrollbar-thumb:active{background:#6b778c!important}::-webkit-scrollbar-track{background:transparent!important}';
+        'html,*{scrollbar-width:auto;scrollbar-color:#9aa3b2 transparent}@supports selector(::-webkit-scrollbar){html,*{scrollbar-width:auto;scrollbar-color:auto}}::-webkit-scrollbar{width:8px!important;height:8px!important}::-webkit-scrollbar-thumb{min-height:32px;min-width:32px;background:#9aa3b2!important;border:0!important;background-clip:padding-box!important;border-radius:8px!important}::-webkit-scrollbar-thumb:hover,::-webkit-scrollbar-thumb:active{background:#6b778c!important}::-webkit-scrollbar-track{background:transparent!important}';
       doc.head.append(scrollStyle);
       if (active) {
         scrollPosition.current =

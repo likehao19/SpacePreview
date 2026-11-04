@@ -2614,8 +2614,8 @@ button:disabled:hover {
   scrollbar-color: var(--scroll-thumb) transparent;
 }
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-thumb {
   min-height: 32px;
@@ -2809,8 +2809,8 @@ button:disabled:hover {
   }
 }
 .reading-outline nav::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 .reading-outline nav::-webkit-scrollbar-thumb {
   border: 0;
