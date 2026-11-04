@@ -3440,14 +3440,37 @@ button:disabled:hover {
 }
 .directory-sidebar {
   width: 260px;
+  flex-shrink: 0;
   min-width: 150px;
   max-width: 55%;
-  resize: horizontal;
   overflow: hidden;
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   background: var(--panel);
+}
+.directory-resizer {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 8px;
+  margin-inline: -4px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.directory-resizer::after {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 30px;
+  top: calc(50% - 15px);
+  left: 3px;
+  border-radius: 2px;
+  background: var(--scroll-thumb);
+}
+.directory-resizer:hover::after,
+.directory-resizer:active::after,
+.directory-resizer:focus-visible::after {
+  background: var(--accent);
 }
 .directory-heading,
 .directory-file-heading {
@@ -3468,8 +3491,15 @@ button:disabled:hover {
 }
 .directory-tree {
   overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  scrollbar-gutter: stable;
   flex: 1;
   padding: 6px 0;
+}
+.directory-tree [role='treeitem'],
+.directory-tree [role='group'] {
+  min-width: max-content;
 }
 .directory-row {
   display: flex;

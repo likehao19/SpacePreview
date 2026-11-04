@@ -10,6 +10,7 @@ import { readZipDirectory, readZipEntry, ZIP_ENTRY_LIMIT } from '../lib/zip-rang
 import { parseInWorker } from '../lib/worker-client';
 import type { ArchiveEntry } from '../lib/worker-types';
 import FileIcon from './FileIcon';
+import DirectorySidebar from './DirectorySidebar';
 import { useFileSearch } from './FileSearch';
 import { findText } from '../lib/find';
 import { openArchive } from '../lib/archive-session';
@@ -305,7 +306,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
   return (
     <div className="directory-preview archive-tree-preview">
       {passwordControls}
-      <aside className="directory-sidebar">
+      <DirectorySidebar>
         <label className="search archive-tree-search">
           <Search size={14} />
           <input
@@ -363,7 +364,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
         <div className="directory-note">
           {entries.length.toLocaleString()} 项 · {formatSize(file.size)}
         </div>
-      </aside>
+      </DirectorySidebar>
       <section className="directory-content">
         {extracting || entryError ? (
           <div className="preview-message" role={entryError ? 'alert' : 'status'}>

@@ -4,6 +4,7 @@ import type { PreviewFile } from '../lib/files';
 import { listDirectory, openDefault, type DirectoryPage } from '../lib/bridge';
 import FileIcon from './FileIcon';
 import Preview from './Preview';
+import DirectorySidebar from './DirectorySidebar';
 
 type Branch = DirectoryPage & { loading?: boolean; error?: string };
 export default function DirectoryPreview({
@@ -124,7 +125,7 @@ export default function DirectoryPreview({
   };
   return (
     <div className="directory-preview">
-      <aside className="directory-sidebar">
+      <DirectorySidebar>
         <div
           className="directory-tree"
           role="tree"
@@ -166,7 +167,7 @@ export default function DirectoryPreview({
         >
           {tree(file)}
         </div>
-      </aside>
+      </DirectorySidebar>
       <section className="directory-content">
         {selected ? (
           <>
