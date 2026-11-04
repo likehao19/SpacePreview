@@ -196,8 +196,8 @@
   --outline-bg: #f7f8fa;
   --outline-active: #e7eef7;
   --office-canvas: #eef0f3;
-  --scroll-thumb: #c6c9d1;
-  --scroll-hover: #989da9;
+  --scroll-thumb: #9aa3b2;
+  --scroll-hover: #6b778c;
   --font-reading: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   --font-code:
     'JetBrains Mono', 'Cascadia Mono', Consolas, 'SFMono-Regular', Menlo, 'Microsoft YaHei',
@@ -725,7 +725,7 @@ button:disabled:hover {
   overflow-x: auto;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  scrollbar-width: thin;
+  scrollbar-width: auto;
 }
 .preview-tab {
   display: flex;
@@ -1920,8 +1920,8 @@ button:disabled:hover {
   --outline-bg: #24252b;
   --outline-active: #293e53;
   --office-canvas: #1d1e22;
-  --scroll-thumb: #515460;
-  --scroll-hover: #787e8d;
+  --scroll-thumb: #70798a;
+  --scroll-hover: #a0aabd;
   --editor-bg: #1e1f22;
   --editor-text: #bcbec4;
   --editor-gutter: #1e1f22;
@@ -1958,8 +1958,8 @@ button:disabled:hover {
     --outline-bg: #24252b;
     --outline-active: #293e53;
     --office-canvas: #1d1e22;
-    --scroll-thumb: #515460;
-    --scroll-hover: #787e8d;
+    --scroll-thumb: #70798a;
+    --scroll-hover: #a0aabd;
     --editor-bg: #1e1f22;
     --editor-text: #bcbec4;
     --editor-gutter: #1e1f22;
@@ -2610,20 +2610,23 @@ button:disabled:hover {
   border-radius: 6px;
 }
 * {
-  scrollbar-width: thin;
+  scrollbar-width: auto;
   scrollbar-color: var(--scroll-thumb) transparent;
 }
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 5px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  min-width: 32px;
   background: var(--scroll-thumb);
   border: 0;
   background-clip: padding-box;
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
   background: var(--scroll-hover);
 }
 ::-webkit-scrollbar-track,
@@ -2806,8 +2809,8 @@ button:disabled:hover {
   }
 }
 .reading-outline nav::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  width: 10px;
+  height: 10px;
 }
 .reading-outline nav::-webkit-scrollbar-thumb {
   border: 0;
