@@ -1430,6 +1430,7 @@ function ParsedPreview({
           loading={backgroundLoading}
           html={result.html ?? ''}
           remoteImages={kind === 'markdown'}
+          imagePath={kind === 'markdown' ? file.path : undefined}
           toolbar={
             <>
               <span className="reading-label">

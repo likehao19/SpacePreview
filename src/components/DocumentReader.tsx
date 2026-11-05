@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+import { localResource } from '../lib/html-resources';
 import PreviewToolbar from './PreviewToolbar';
 import { TextAppearanceControls } from './TextAppearance';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -175,12 +177,14 @@ export default function DocumentReader({
   note,
   toolbar,
   remoteImages = false,
+  imagePath,
 }: {
   html: string;
   loading?: boolean;
   note?: string;
   toolbar?: React.ReactNode;
   remoteImages?: boolean;
+  imagePath?: string;
 }) {
   const scroll = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState('');
@@ -207,11 +211,17 @@ export default function DocumentReader({
       const source = img.getAttribute('src') || '';
       if (/^data:image\/(png|jpeg|gif|webp);base64,/i.test(source)) return;
       const url = remoteImages ? markdownImageUrl(source) : null;
-      if (!url) {
+      const relative = remoteImages ? localResource(source) : null;
+      const local = relative && /\.(png|jpe?g|gif|webp|svg|ico)$/i.test(relative);
+      if (!url && !local) {
         img.remove();
         return;
       }
-      img.src = url;
+      if (url) img.src = url;
+      else {
+        img.removeAttribute('src');
+        img.setAttribute('data-local-image', relative!);
+      }
       img.loading = 'lazy';
       img.decoding = 'async';
       img.referrerPolicy = 'no-referrer';
@@ -221,7 +231,9 @@ export default function DocumentReader({
       error.className = 'reader-image-error';
       error.hidden = true;
       error.setAttribute('role', 'status');
-      error.textContent = `${img.alt || '图片'}加载失败，链接可能已失效或网络不可用。`;
+      error.textContent = local
+        ? `${img.alt || '图片'}加载失败，请确认附件存在、单张不超过 8 MB，并从桌面端打开原 Markdown 文件。`
+        : `${img.alt || '图片'}加载失败，链接可能已失效或网络不可用。`;
       img.replaceWith(wrapper);
       wrapper.append(img, error);
     });
@@ -254,6 +266,70 @@ export default function DocumentReader({
     });
     return { html: parsed.body.innerHTML, outline };
   }, [html, remoteImages]);
+  useEffect(() => {
+    if (!scroll.current) return;
+    let active = true;
+    const urls = new Map<string, Promise<string>>();
+    const fail = (img: HTMLImageElement) => {
+      img.hidden = true;
+      const error = img.nextElementSibling as HTMLElement | null;
+      if (error) error.hidden = false;
+    };
+    const load = async (img: HTMLImageElement) => {
+      const relative = img.dataset.localImage!;
+      if (!imagePath) {
+        fail(img);
+        return;
+      }
+      let pending = urls.get(relative);
+      if (!pending) {
+        pending = invoke<ArrayBuffer>('read_html_resource', { path: imagePath, relative }).then(
+          (bytes) => {
+            if (!active) throw new Error('Preview closed');
+            const extension = relative.split('.').at(-1)!.toLowerCase();
+            const type =
+              extension === 'svg'
+                ? 'image/svg+xml'
+                : extension === 'jpg'
+                  ? 'image/jpeg'
+                  : extension === 'ico'
+                    ? 'image/x-icon'
+                    : `image/${extension}`;
+            return URL.createObjectURL(new Blob([bytes], { type }));
+          },
+        );
+        urls.set(relative, pending);
+      }
+      try {
+        const url = await pending;
+        if (active) img.src = url;
+      } catch {
+        if (active) fail(img);
+      }
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries)
+          if (entry.isIntersecting) {
+            observer.unobserve(entry.target);
+            void load(entry.target as HTMLImageElement);
+          }
+      },
+      { root: scroll.current, rootMargin: '300px' },
+    );
+    scroll.current
+      .querySelectorAll<HTMLImageElement>('img[data-local-image]')
+      .forEach((img) => observer.observe(img));
+    return () => {
+      active = false;
+      observer.disconnect();
+      for (const pending of urls.values())
+        void pending.then(
+          (url) => URL.revokeObjectURL(url),
+          () => {},
+        );
+    };
+  }, [document, imagePath]);
   useEffect(() => {
     if (!scroll.current) return;
     const headings = document.outline.flatMap((item) => {
