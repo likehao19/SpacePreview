@@ -69,13 +69,12 @@ export async function openPackage(file: PreviewFile, signal: AbortSignal) {
     close: () => {},
     async extract(entry: ArchiveEntry, limit = 256 * 1024 * 1024) {
       if (entry.size > limit || entry.compressed > limit) throw new Error('内部文件超过设置上限。');
-      if (entry.size > 256 * 1024 * 1024) throw new Error('内部文件超过 256 MB。');
       if (xar) {
-        if (entry.compressed > 256 * 1024 * 1024 || ![0, 8].includes(entry.method!))
-          throw new Error('此 XAR 条目压缩算法尚未支持或超过 256 MB。');
+        if (entry.compressed > limit || ![0, 8].includes(entry.method!))
+          throw new Error('此 XAR 条目压缩算法尚未支持或超过设置上限。');
         const bytes = await read(entry.offset!, entry.compressed);
         const result = await parseInWorker(
-          { kind: 'xar-data', name: file.name, bytes, entry },
+          { kind: 'xar-data', name: file.name, bytes, entry, archiveEntryLimit: limit },
           signal,
         );
         return new Blob([result.data as Uint8Array<ArrayBuffer>]);
@@ -83,7 +82,13 @@ export async function openPackage(file: PreviewFile, signal: AbortSignal) {
       if (!compound)
         return new Blob([(await read(entry.offset!, entry.size)) as Uint8Array<ArrayBuffer>]);
       const result = await parseInWorker(
-        { kind: 'compound-data', name: file.name, bytes: await readFullBytes(file, signal), entry },
+        {
+          kind: 'compound-data',
+          name: file.name,
+          bytes: await readFullBytes(file, signal),
+          entry,
+          archiveEntryLimit: limit,
+        },
         signal,
       );
       return new Blob([result.data as Uint8Array<ArrayBuffer>]);

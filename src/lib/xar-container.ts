@@ -22,11 +22,11 @@ export function xarHeader(bytes: Uint8Array) {
   return { header, compressed, size };
 }
 
-export function inflateZlib(bytes: Uint8Array, expected: number) {
+export function inflateZlib(bytes: Uint8Array, expected: number, limit = 256 * 1024 * 1024) {
   const chunks: Uint8Array[] = [];
   let size = 0;
-  if (!Number.isSafeInteger(expected) || expected < 0 || expected > 256 * 1024 * 1024)
-    throw new Error('XAR 展开大小无效或超过 256 MB。');
+  if (!Number.isSafeInteger(expected) || expected < 0 || expected > limit)
+    throw new Error('XAR 展开大小无效或超过设置上限。');
   const decoder = new Unzlib((chunk) => {
     size += chunk.length;
     if (size > expected) throw new Error('XAR 展开大小超过目录记录。');

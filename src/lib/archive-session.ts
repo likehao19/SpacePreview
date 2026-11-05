@@ -21,12 +21,17 @@ interface ArchiveClient {
 
 // Read raw directory entries: the library's object API drops empty directories
 // and treats filenames as object properties. Paths here remain display-only strings.
-export async function openArchive(file: PreviewFile, signal: AbortSignal, password = '') {
+export async function openArchive(
+  file: PreviewFile,
+  signal: AbortSignal,
+  password = '',
+  entryLimit = 256 * 1024 * 1024,
+) {
   if (packageFormats.includes(extension(file.name))) return openPackage(file, signal);
   if (['gz', 'zst', 'zstd', 'bz2', 'xz'].includes(extension(file.name))) {
     const bytes = await readFullBytes(file, signal);
     const result = await parseInWorker(
-      { kind: 'archive-decompress', name: file.name, bytes },
+      { kind: 'archive-decompress', name: file.name, bytes, archiveEntryLimit: entryLimit },
       signal,
     );
     const data = result.data!;
@@ -45,6 +50,7 @@ export async function openArchive(file: PreviewFile, signal: AbortSignal, passwo
         },
         signal,
         password,
+        entryLimit,
       );
     }
     const name = file.name.replace(/\.(?:gz|zstd?|bz2|xz)$/i, '');

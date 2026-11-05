@@ -114,7 +114,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
       setEntryError('');
       setExtracting(false);
       if (!zip) {
-        const archive = await openArchive(file, controller.signal, password);
+        const archive = await openArchive(file, controller.signal, password, entryLimit);
         if (controller.signal.aborted) {
           archive.close();
           return;
@@ -142,7 +142,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
       session.current = null;
       extraction.current?.abort();
     };
-  }, [file, reload, zip]);
+  }, [file, reload, zip, entryLimit]);
   useEffect(() => {
     extraction.current?.abort();
     setExtracting(false);

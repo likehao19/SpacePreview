@@ -51,8 +51,16 @@ it('persists independent file and archive limits', () => {
     maxPreviewMiB: 2048,
     maxArchiveEntryMiB: 128,
   });
-  for (const value of [0, -1, 512, 32.5, '128'])
+  for (const value of [0, -1, 2048, 32.5, '128'])
     expect(
       parsePreviewPreferences(JSON.stringify({ maxArchiveEntryMiB: value })).maxArchiveEntryMiB,
     ).toBe(256);
+});
+
+it('allows archive limits up to 1 GiB without changing the 256 MiB default', () => {
+  expect(parsePreviewPreferences(null).maxArchiveEntryMiB).toBe(256);
+  for (const limit of [512, 1024])
+    expect(
+      parsePreviewPreferences(JSON.stringify({ maxArchiveEntryMiB: limit })).maxArchiveEntryMiB,
+    ).toBe(limit);
 });

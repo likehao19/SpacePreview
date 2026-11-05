@@ -2,12 +2,12 @@ import { Gunzip } from 'fflate';
 import { Decompress } from 'fzstd';
 import { Buffer } from 'buffer';
 
-export function decompressStream(bytes: Uint8Array, zstandard: boolean) {
+export function decompressStream(bytes: Uint8Array, zstandard: boolean, limit = 256 * 1024 * 1024) {
   const chunks: Uint8Array[] = [];
   let size = 0;
   const output = (chunk: Uint8Array) => {
     size += chunk.length;
-    if (size > 256 * 1024 * 1024) throw new Error('压缩流展开后超过 256 MB。');
+    if (size > limit) throw new Error('压缩流展开后超过设置上限。');
     chunks.push(chunk);
   };
   const decoder = zstandard ? new Decompress(output) : new Gunzip(output);
@@ -23,14 +23,18 @@ export function decompressStream(bytes: Uint8Array, zstandard: boolean) {
   return result;
 }
 
-export async function decompressArchiveStream(bytes: Uint8Array, format: string) {
+export async function decompressArchiveStream(
+  bytes: Uint8Array,
+  format: string,
+  limit = 256 * 1024 * 1024,
+) {
   if (format !== 'bz2' && format !== 'xz')
-    return decompressStream(bytes, ['zst', 'zstd'].includes(format));
+    return decompressStream(bytes, ['zst', 'zstd'].includes(format), limit);
   const chunks: Uint8Array[] = [];
   let size = 0;
   const output = (chunk: Uint8Array) => {
     size += chunk.length;
-    if (size > 256 * 1024 * 1024) throw new Error('压缩流展开后超过 256 MB。');
+    if (size > limit) throw new Error('压缩流展开后超过设置上限。');
     chunks.push(chunk);
   };
   if (format === 'xz') {

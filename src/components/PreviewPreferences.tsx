@@ -86,7 +86,7 @@ export default function PreviewPreferencesSettings() {
             value={preferences.maxArchiveEntryMiB}
             onChange={(e) => update('maxArchiveEntryMiB', Number(e.target.value))}
           >
-            {[16, 32, 64, 128, 256].map((size) => (
+            {[16, 32, 64, 128, 256, 512, 1024].map((size) => (
               <option key={size} value={size}>
                 {size} MiB
               </option>

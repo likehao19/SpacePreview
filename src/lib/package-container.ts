@@ -133,7 +133,7 @@ export function parsePak(bytes: Uint8Array, total: number): ArchiveEntry[] {
   return entries;
 }
 
-export async function readCompound(bytes: Uint8Array, index?: number) {
+export async function readCompound(bytes: Uint8Array, index?: number, limit = 256 * 1024 * 1024) {
   if (
     bytes.length < 512 ||
     new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, true) !== 0xe011cfd0
@@ -148,7 +148,7 @@ export async function readCompound(bytes: Uint8Array, index?: number) {
   if (index !== undefined) {
     const stream = compound.FileIndex[index];
     if (!stream || stream.type !== 2 || !stream.content) throw new Error('复合文档流不存在。');
-    if (stream.size > 256 * 1024 * 1024) throw new Error('复合文档流超过 256 MB。');
+    if (stream.size > limit) throw new Error('复合文档流超过设置上限。');
     return { data: Uint8Array.from(stream.content) };
   }
   const root = compound.FullPaths[0];

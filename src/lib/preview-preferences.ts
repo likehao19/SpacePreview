@@ -45,7 +45,7 @@ export function parsePreviewPreferences(raw: string | null): PreviewPreferences 
     maxArchiveEntryMiB:
       Number.isInteger(value.maxArchiveEntryMiB) &&
       value.maxArchiveEntryMiB! >= 16 &&
-      value.maxArchiveEntryMiB! <= 256
+      value.maxArchiveEntryMiB! <= 1024
         ? value.maxArchiveEntryMiB!
         : 256,
     font: ['auto', 'sans', 'serif', 'mono'].includes(value.font ?? '') ? value.font! : 'auto',

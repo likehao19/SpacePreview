@@ -134,6 +134,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
               : await container.readCompound(
                   bytes,
                   kind === 'compound-data' ? event.data.entry!.index : undefined,
+                  event.data.archiveEntryLimit,
                 );
     } else if (kind === 'xar-data') {
       const entry = event.data.entry!;
@@ -141,7 +142,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         if (bytes.length !== entry.size) throw new Error('XAR 条目大小不一致。');
         result = { data: bytes };
       } else if (entry.method === 8)
-        result = { data: (await import('../lib/xar-container')).inflateZlib(bytes, entry.size) };
+        result = {
+          data: (await import('../lib/xar-container')).inflateZlib(
+            bytes,
+            entry.size,
+            event.data.archiveEntryLimit,
+          ),
+        };
       else throw new Error('XAR 条目压缩算法尚未支持。');
     } else if (kind === 'archive') result = { entries: listZip(bytes) };
     else if (kind === 'archive-directory')
@@ -151,7 +158,9 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     else if (kind === 'archive-decompress') {
       const ext = extension(name);
       result = {
-        data: await (await import('../lib/compressed-stream')).decompressArchiveStream(bytes, ext),
+        data: await (
+          await import('../lib/compressed-stream')
+        ).decompressArchiveStream(bytes, ext, event.data.archiveEntryLimit),
       };
     } else if (kind === 'docx-layout') result = { data: prepareDocx(bytes) };
     else if (kind === 'csv')

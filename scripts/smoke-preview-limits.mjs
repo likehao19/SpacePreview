@@ -50,9 +50,28 @@ try {
   await single.selectOption('16');
   await page.getByRole('button', { name: '返回预览', exact: true }).click();
   await expect(page.getByText('文件超过预览上限', { exact: false })).toBeVisible();
+  await settings();
+  await single.selectOption('2048');
+  await archive.selectOption('256');
+  const expanded = Buffer.from(zipSync({ 'above-default.bin': new Uint8Array(257 * 1024 * 1024) }));
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'expanded.zip', mimeType: 'application/zip', buffer: expanded });
+  await expect(page.getByRole('button', { name: 'above-default.bin', exact: true })).toBeDisabled();
+  await settings();
+  await archive.selectOption('1024');
+  await page.getByRole('button', { name: '返回预览', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'above-default.bin', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'above-default.bin', exact: true }).click();
+  await expect(page.getByLabel('十六进制文件内容')).toBeVisible({ timeout: 30000 });
+  await settings();
+  await archive.selectOption('256');
+  await page.getByRole('button', { name: '返回预览', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'above-default.bin', exact: true })).toBeDisabled();
+  await expect(page.getByLabel('十六进制文件内容')).toHaveCount(0);
   expect(errors).toEqual([]);
   console.log(
-    'Defaults, persistence, live archive limit changes, 33 MiB stored entry extraction, lower-limit cleanup and global limit passed.',
+    'Defaults, persistence, live archive limit changes, 33 MiB stored entry extraction, lower-limit cleanup, global limit and 257 MiB expansion with 1 GiB setting passed.',
   );
 } finally {
   await browser.close();
