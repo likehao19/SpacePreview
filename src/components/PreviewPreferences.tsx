@@ -72,16 +72,30 @@ export default function PreviewPreferencesSettings() {
             value={preferences.maxPreviewMiB}
             onChange={(e) => update('maxPreviewMiB', Number(e.target.value))}
           >
-            {[16, 32, 64, 128, 256, 512, 1024].map((size) => (
+            {[16, 32, 64, 128, 256, 512, 1024, 2048].map((size) => (
               <option key={size} value={size}>
-                {size} MB
+                {size} MiB
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="preference-row">
+          <span>压缩包内单文件上限（压缩及展开大小）</span>
+          <select
+            aria-label="压缩包内文件大小上限"
+            value={preferences.maxArchiveEntryMiB}
+            onChange={(e) => update('maxArchiveEntryMiB', Number(e.target.value))}
+          >
+            {[16, 32, 64, 128, 256].map((size) => (
+              <option key={size} value={size}>
+                {size} MiB
               </option>
             ))}
           </select>
         </label>
       </div>
       <p className="shortcut-help">
-        超限文件只显示提示，可用默认应用打开。解析后的内存占用可能大于文件大小。
+        设置立即应用，压缩包内文件同时受以上两项上限约束；超限文件只显示提示，可用默认应用打开。解析后的内存占用可能大于文件大小。
       </p>
       <h3>文本阅读</h3>
       <div className="preference-group">

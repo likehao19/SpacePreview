@@ -140,11 +140,16 @@ export function parseZipDirectory(bytes: Uint8Array, count: number): ArchiveEntr
   }
   return entries;
 }
-export async function readZipEntry(entry: ArchiveEntry, size: number, read: RangeReader) {
+export async function readZipEntry(
+  entry: ArchiveEntry,
+  size: number,
+  read: RangeReader,
+  limit = ZIP_ENTRY_LIMIT,
+) {
   if (entry.directory || entry.encrypted) throw new Error('加密条目需要使用压缩软件打开。');
   if (![0, 8].includes(entry.method ?? -1)) throw new Error('此条目的压缩算法尚不支持。');
-  if (entry.size > ZIP_ENTRY_LIMIT || entry.compressed > ZIP_ENTRY_LIMIT)
-    throw new Error('内部文件的压缩与展开大小均需在 32 MB 以内。');
+  if (entry.size > limit || entry.compressed > limit)
+    throw new Error(`内部文件的压缩与展开大小均需在 ${limit / 1024 / 1024} MB 以内。`);
   const offset = entry.offset!;
   if (!Number.isSafeInteger(offset) || offset + 30 > size) throw new Error('ZIP 条目偏移无效。');
   const header = await read(offset, 30),
@@ -158,12 +163,12 @@ export async function readZipEntry(entry: ArchiveEntry, size: number, read: Rang
     throw new Error('ZIP 条目头损坏或加密。');
   const start = offset + 30 + view.getUint16(26, true) + view.getUint16(28, true);
   if (start + entry.compressed > size) throw new Error('ZIP 数据越界。');
-  const bytes = await read(start, entry.compressed);
+  const bytes = await readArchiveRange(read, start, entry.compressed);
   if (bytes.length !== entry.compressed) throw new Error('ZIP 条目读取不完整。');
   return bytes;
 }
-export function inflateZipEntry(bytes: Uint8Array, entry: ArchiveEntry) {
-  if (entry.encrypted || entry.size > ZIP_ENTRY_LIMIT || bytes.length > ZIP_ENTRY_LIMIT)
+export function inflateZipEntry(bytes: Uint8Array, entry: ArchiveEntry, limit = ZIP_ENTRY_LIMIT) {
+  if (entry.encrypted || entry.size > limit || bytes.length > limit)
     throw new Error('条目加密或超过预览上限。');
   const chunks: Uint8Array[] = [];
   let length = 0;
@@ -173,8 +178,7 @@ export function inflateZipEntry(bytes: Uint8Array, entry: ArchiveEntry) {
   } else if (entry.method === 8) {
     const inflate = new Inflate((chunk) => {
       length += chunk.length;
-      if (length > ZIP_ENTRY_LIMIT || length > entry.size)
-        throw new Error('解压内容超过预览内存上限。');
+      if (length > limit || length > entry.size) throw new Error('解压内容超过预览内存上限。');
       chunks.push(chunk);
     });
     for (let offset = 0; offset < bytes.length; offset += 1024)
@@ -189,4 +193,16 @@ export function inflateZipEntry(bytes: Uint8Array, entry: ArchiveEntry) {
   }
   if (crc32(result) !== entry.crc) throw new Error('ZIP 校验失败，条目可能损坏。');
   return result;
+}
+
+// Keep native IPC reads bounded while assembling a selected archive entry.
+export async function readArchiveRange(read: RangeReader, offset: number, length: number) {
+  const bytes = new Uint8Array(length);
+  for (let position = 0; position < length; position += 4 * 1024 * 1024) {
+    const size = Math.min(4 * 1024 * 1024, length - position);
+    const chunk = await read(offset + position, size);
+    if (chunk.length !== size) throw new Error('内部文件读取不完整。');
+    bytes.set(chunk, position);
+  }
+  return bytes;
 }

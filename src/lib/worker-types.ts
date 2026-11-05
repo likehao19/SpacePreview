@@ -11,6 +11,7 @@ export interface ArchiveEntry {
   sourcePath?: string;
 }
 export interface WorkerRequest {
+  archiveEntryLimit?: number;
   progressive?: boolean;
   phase?: 'index' | 'package';
   unit?: number;

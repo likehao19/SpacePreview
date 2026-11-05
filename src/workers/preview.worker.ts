@@ -146,7 +146,8 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     } else if (kind === 'archive') result = { entries: listZip(bytes) };
     else if (kind === 'archive-directory')
       result = { entries: parseZipDirectory(bytes, event.data.count!) };
-    else if (kind === 'archive-data') result = { data: inflateZipEntry(bytes, event.data.entry!) };
+    else if (kind === 'archive-data')
+      result = { data: inflateZipEntry(bytes, event.data.entry!, event.data.archiveEntryLimit) };
     else if (kind === 'archive-decompress') {
       const ext = extension(name);
       result = {

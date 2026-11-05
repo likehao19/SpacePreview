@@ -6,7 +6,7 @@ import Preview from './Preview';
 import { archiveTree, type ArchiveNode } from '../lib/archive-tree';
 import { extension, formatSize, previewMime, type PreviewFile } from '../lib/files';
 import { readRange } from '../lib/bridge';
-import { readZipDirectory, readZipEntry, ZIP_ENTRY_LIMIT } from '../lib/zip-range';
+import { readZipDirectory, readZipEntry } from '../lib/zip-range';
 import { parseInWorker } from '../lib/worker-client';
 import type { ArchiveEntry } from '../lib/worker-types';
 import FileIcon from './FileIcon';
@@ -21,24 +21,17 @@ import PreviewSession, {
 } from './PreviewSession';
 
 function entryReason(entry: ArchiveEntry, maxMiB: number) {
-  if (!entry.directory && entry.size > maxMiB * 1024 * 1024) return `超过预览上限 ${maxMiB} MB`;
-  return entry.directory
-    ? ''
-    : entry.encrypted
-      ? '已加密'
-      : entry.sourcePath !== undefined
-        ? entry.size > 256 * 1024 * 1024
-          ? '超过 256 MB'
-          : ''
-        : ![0, 8].includes(entry.method ?? -1)
-          ? '算法不支持'
-          : entry.size > ZIP_ENTRY_LIMIT || entry.compressed > ZIP_ENTRY_LIMIT
-            ? '超过 32 MB'
-            : '';
+  if (entry.directory) return '';
+  if (entry.size > maxMiB * 1024 * 1024 || entry.compressed > maxMiB * 1024 * 1024)
+    return `压缩或展开大小超过 ${maxMiB} MiB`;
+  if (entry.encrypted) return '已加密';
+  return entry.sourcePath === undefined && ![0, 8].includes(entry.method ?? -1) ? '算法不支持' : '';
 }
 
 export default function ArchivePreview({ file }: { file: PreviewFile }) {
   const { preferences } = usePreviewPreferences();
+  const entryMiB = Math.min(preferences.maxPreviewMiB, preferences.maxArchiveEntryMiB);
+  const entryLimit = entryMiB * 1024 * 1024;
   const [entries, setEntries] = useState<ArchiveEntry[] | null>(null);
   const [error, setError] = useState('');
   const [entryError, setEntryError] = useState('');
@@ -150,6 +143,11 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
       extraction.current?.abort();
     };
   }, [file, reload, zip]);
+  useEffect(() => {
+    extraction.current?.abort();
+    setExtracting(false);
+    setStack([]);
+  }, [entryLimit]);
   const nodes = useMemo(() => archiveTree(entries ?? []), [entries]);
   const matches = useMemo(
     () =>
@@ -170,7 +168,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
       return next;
     });
   const openEntry = async (entry: ArchiveEntry) => {
-    if (entry.directory || entryReason(entry, preferences.maxPreviewMiB)) return;
+    if (entry.directory || entryReason(entry, entryMiB)) return;
     setSelected(`file:${entry.index}:${entry.name}`);
     setStack([]);
     extraction.current?.abort();
@@ -181,12 +179,20 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
     try {
       let blob: Blob;
       if (session.current) {
-        blob = await session.current.extract(entry);
+        blob = await session.current.extract(entry, entryLimit);
       } else {
-        const bytes = await readZipEntry(entry, file.size, read);
+        const bytes = await readZipEntry(
+          entry,
+          file.size,
+          (offset, length) => {
+            controller.signal.throwIfAborted();
+            return read(offset, length);
+          },
+          entryLimit,
+        );
         if (controller.signal.aborted) return;
         const result = await parseInWorker(
-          { kind: 'archive-data', name: file.name, bytes, entry },
+          { kind: 'archive-data', name: file.name, bytes, entry, archiveEntryLimit: entryLimit },
           controller.signal,
         );
         if (controller.signal.aborted) return;
@@ -255,7 +261,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
     return (
       <>
         {children.slice(0, limit).map((node) => {
-          const reason = node.entry ? entryReason(node.entry, preferences.maxPreviewMiB) : '';
+          const reason = node.entry ? entryReason(node.entry, entryMiB) : '';
           return (
             <div
               key={node.id}

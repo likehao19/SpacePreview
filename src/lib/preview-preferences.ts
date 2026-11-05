@@ -17,6 +17,7 @@ export type PreviewPreferences = {
   encoding: TextEncoding;
   html: 'source' | 'web';
   maxPreviewMiB: number;
+  maxArchiveEntryMiB: number;
   tabs: boolean;
   readingWidth: number;
 };
@@ -38,8 +39,14 @@ export function parsePreviewPreferences(raw: string | null): PreviewPreferences 
     maxPreviewMiB:
       Number.isInteger(value.maxPreviewMiB) &&
       value.maxPreviewMiB! >= 16 &&
-      value.maxPreviewMiB! <= 1024
+      value.maxPreviewMiB! <= 2048
         ? value.maxPreviewMiB!
+        : 512,
+    maxArchiveEntryMiB:
+      Number.isInteger(value.maxArchiveEntryMiB) &&
+      value.maxArchiveEntryMiB! >= 16 &&
+      value.maxArchiveEntryMiB! <= 256
+        ? value.maxArchiveEntryMiB!
         : 256,
     font: ['auto', 'sans', 'serif', 'mono'].includes(value.font ?? '') ? value.font! : 'auto',
     size:

@@ -59,7 +59,10 @@ export async function openArchive(file: PreviewFile, signal: AbortSignal, passwo
     return {
       entries: [entry],
       close: () => {},
-      extract: async () => new Blob([data as Uint8Array<ArrayBuffer>]),
+      extract: async (_entry: ArchiveEntry, limit = 256 * 1024 * 1024) => {
+        if (data.length > limit || file.size > limit) throw new Error('内部文件超过设置上限。');
+        return new Blob([data as Uint8Array<ArrayBuffer>]);
+      },
     };
   }
   const worker = new Worker(new URL('/engines/archive-worker.js', location.href), {
@@ -119,8 +122,8 @@ export async function openArchive(file: PreviewFile, signal: AbortSignal, passwo
     return {
       entries,
       close,
-      async extract(entry: ArchiveEntry) {
-        if (entry.size > 256 * 1024 * 1024) throw new Error('内部文件超过 256 MB。');
+      async extract(entry: ArchiveEntry, limit = 256 * 1024 * 1024) {
+        if (entry.size > limit) throw new Error('内部文件超过设置上限。');
         const extractionTimer = setTimeout(
           () => close(new Error('内部文件解压超过 120 秒，已停止。')),
           120_000,

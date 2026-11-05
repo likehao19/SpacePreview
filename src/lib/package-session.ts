@@ -1,7 +1,7 @@
 import { readFullBytes, readRange } from './bridge';
 import { extension, type PreviewFile } from './files';
 import { asarHeaderSize, crxZipOffset, pakHeaderSize } from './package-container';
-import { readZipDirectory, readZipEntry } from './zip-range';
+import { readZipDirectory, readZipEntry, readArchiveRange } from './zip-range';
 import { parseInWorker } from './worker-client';
 import type { ArchiveEntry } from './worker-types';
 import { xarHeader } from './xar-container';
@@ -11,7 +11,14 @@ export async function openPackage(file: PreviewFile, signal: AbortSignal) {
   const ext = extension(file.name);
   const read = async (offset: number, length: number) => {
     signal.throwIfAborted();
-    const bytes = await readRange(file, offset, length);
+    const bytes = await readArchiveRange(
+      (offset, length) => {
+        signal.throwIfAborted();
+        return readRange(file, offset, length);
+      },
+      offset,
+      length,
+    );
     signal.throwIfAborted();
     return bytes;
   };
@@ -26,10 +33,12 @@ export async function openPackage(file: PreviewFile, signal: AbortSignal) {
     return {
       entries: parsed.entries!,
       close: () => {},
-      async extract(entry: ArchiveEntry) {
-        const bytes = await readZipEntry(entry, file.size - base, zipRead);
+      async extract(entry: ArchiveEntry, limit = 256 * 1024 * 1024) {
+        if (entry.size > limit || entry.compressed > limit)
+          throw new Error('内部文件超过设置上限。');
+        const bytes = await readZipEntry(entry, file.size - base, zipRead, limit);
         const result = await parseInWorker(
-          { kind: 'archive-data', name: file.name, bytes, entry },
+          { kind: 'archive-data', name: file.name, bytes, entry, archiveEntryLimit: limit },
           signal,
         );
         return new Blob([result.data as Uint8Array<ArrayBuffer>]);
@@ -58,7 +67,8 @@ export async function openPackage(file: PreviewFile, signal: AbortSignal) {
   return {
     entries: parsed.entries!,
     close: () => {},
-    async extract(entry: ArchiveEntry) {
+    async extract(entry: ArchiveEntry, limit = 256 * 1024 * 1024) {
+      if (entry.size > limit || entry.compressed > limit) throw new Error('内部文件超过设置上限。');
       if (entry.size > 256 * 1024 * 1024) throw new Error('内部文件超过 256 MB。');
       if (xar) {
         if (entry.compressed > 256 * 1024 * 1024 || ![0, 8].includes(entry.method!))

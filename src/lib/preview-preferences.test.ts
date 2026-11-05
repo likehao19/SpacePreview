@@ -8,6 +8,7 @@ it('restores shared reading preferences from storage', () => {
     encoding: 'gb18030',
     html: 'web',
     maxPreviewMiB: 256,
+    maxArchiveEntryMiB: 256,
     tabs: false,
     readingWidth: 860,
   };
@@ -24,12 +25,12 @@ it('falls back safely for corrupt and invalid persisted preferences', () => {
   ).toEqual(defaults);
 });
 
-it('defaults to 256 MiB and rejects unsafe limits', () => {
-  expect(parsePreviewPreferences(null).maxPreviewMiB).toBe(256);
+it('defaults to 512 MiB and rejects unsafe limits', () => {
+  expect(parsePreviewPreferences(null).maxPreviewMiB).toBe(512);
   expect(parsePreviewPreferences('{"maxPreviewMiB":64}').maxPreviewMiB).toBe(64);
-  for (const value of [0, -1, 2048, 16.5, '256'])
+  for (const value of [0, -1, 4096, 16.5, '256'])
     expect(parsePreviewPreferences(JSON.stringify({ maxPreviewMiB: value })).maxPreviewMiB).toBe(
-      256,
+      512,
     );
 });
 it('restores bounded reading widths and only enables tabs explicitly', () => {
@@ -43,4 +44,15 @@ it('restores bounded reading widths and only enables tabs explicitly', () => {
       readingWidth: 860,
     });
   }
+});
+
+it('persists independent file and archive limits', () => {
+  expect(parsePreviewPreferences('{"maxPreviewMiB":2048,"maxArchiveEntryMiB":128}')).toMatchObject({
+    maxPreviewMiB: 2048,
+    maxArchiveEntryMiB: 128,
+  });
+  for (const value of [0, -1, 512, 32.5, '128'])
+    expect(
+      parsePreviewPreferences(JSON.stringify({ maxArchiveEntryMiB: value })).maxArchiveEntryMiB,
+    ).toBe(256);
 });
