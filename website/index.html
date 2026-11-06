@@ -12,6 +12,7 @@
     <link rel="icon" href="assets/app-icon.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
+    <script src="motion.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
@@ -23,8 +24,7 @@
           ></a
         >
         <nav aria-label="主导航">
-          <a href="#features">功能</a><a href="#screenshots">界面</a><a href="#formats">格式</a
-          ><a href="#download">下载</a>
+          <a href="#features">功能</a><a href="#formats">格式</a><a href="#download">下载</a>
         </nav>
         <a
           class="github-link"
@@ -67,123 +67,6 @@
             <div><strong>Linux</strong><span>x64 · AppImage / DEB</span></div>
             <div><strong>本地预览</strong><span>只读 · 无需上传</span></div>
           </div>
-        </div>
-      </section>
-
-      <section class="showcase section-tint" id="screenshots">
-        <div class="container">
-          <div class="section-heading">
-            <div>
-              <span class="eyebrow">UI / 真实软件截图</span>
-              <h2>文件的模样，直接看见。</h2>
-              <p>从压缩包里的图片，到文档里的细节，用一个窗口继续浏览。</p>
-            </div>
-            <span class="screenshot-hint">点击图片，放大查看 ↗</span>
-          </div>
-          <div class="screenshot-tabs" role="tablist" aria-label="选择软件截图">
-            <button
-              type="button"
-              role="tab"
-              id="tab-archive"
-              aria-controls="screenshot-panel"
-              aria-selected="true"
-              tabindex="0"
-              data-shot="archive"
-            >
-              压缩包与图片
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-code"
-              aria-controls="screenshot-panel"
-              aria-selected="false"
-              tabindex="-1"
-              data-shot="code"
-            >
-              代码高亮
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-word"
-              aria-controls="screenshot-panel"
-              aria-selected="false"
-              tabindex="-1"
-              data-shot="word"
-            >
-              Word 文档
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-pdf"
-              aria-controls="screenshot-panel"
-              aria-selected="false"
-              tabindex="-1"
-              data-shot="pdf"
-            >
-              PDF 阅读
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-tar"
-              aria-controls="screenshot-panel"
-              aria-selected="false"
-              tabindex="-1"
-              data-shot="tar"
-            >
-              TAR 与源码
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-html"
-              aria-controls="screenshot-panel"
-              aria-selected="false"
-              tabindex="-1"
-              data-shot="html"
-            >
-              HTML 网页
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-settings"
-              aria-controls="screenshot-panel"
-              aria-selected="false"
-              tabindex="-1"
-              data-shot="settings"
-            >
-              偏好设置
-            </button>
-          </div>
-          <figure
-            class="screenshot-panel"
-            id="screenshot-panel"
-            role="tabpanel"
-            aria-labelledby="tab-archive"
-          >
-            <a
-              class="screenshot-open"
-              href="assets/preview-archive.png"
-              aria-label="放大当前软件截图"
-              ><img
-                id="preview-image"
-                src="assets/preview-archive.png"
-                width="1250"
-                height="950"
-                alt="瞬览在 ZIP 压缩包中浏览目录，并直接预览其中的鲨鱼图片"
-                fetchpriority="high"
-                decoding="async"
-            /></a>
-            <figcaption>
-              <span id="preview-caption" aria-live="polite"
-                >压缩包里，也能直接看图。左侧浏览目录，右侧继续预览。</span
-              ><span>Windows 实机界面</span>
-            </figcaption>
-          </figure>
         </div>
       </section>
 
@@ -542,60 +425,97 @@
           </div>
           <div class="download-grid">
             <article class="download-card recommended">
-              <span class="os-icon" aria-hidden="true">⊞</span>
+              <span class="os-icon" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M2 3h9v9H2zm11 0h9v9h-9zM2 14h9v9H2zm11 0h9v9h-9z"
+                  /></svg
+              ></span>
               <h3>Windows</h3>
               <p>Windows 10 / 11 · x64<br />安装程序 · 需要 WebView2</p>
-              <a
-                class="button primary"
-                data-platform="windows"
-                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-windows-x64-setup.exe"
-                ><span data-download-label>下载 Windows 版</span>
-                <span data-download-arrow>↓</span></a
-              ><small data-package-name>SpacePreview-0.10.14-windows-x64-setup.exe</small>
+              <div class="download-actions">
+                <a
+                  class="button primary"
+                  data-platform="windows"
+                  href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-windows-x64-setup.exe"
+                  ><span data-download-label>下载 Windows 版</span>
+                  <span data-download-arrow>↓</span></a
+                ><small data-package-name>SpacePreview-0.10.14-windows-x64-setup.exe</small>
+              </div>
             </article>
             <article class="download-card">
-              <span class="os-icon" aria-hidden="true">⌘</span>
+              <span class="os-icon" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M16.5 2c.1 1.3-.4 2.6-1.2 3.5-.8.9-2 1.5-3.2 1.4-.2-1.3.4-2.6 1.2-3.5.9-.9 2.1-1.4 3.2-1.4ZM20.7 17.5c-.5 1.1-.8 1.6-1.5 2.6-.9 1.3-2.1 2.9-3.6 2.9-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.5 0-2.6-1.4-3.5-2.7C2.2 16.6 1.5 12 3 9.6c1-1.6 2.5-2.5 4-2.5 1.6 0 2.6.9 3.9.9 1.2 0 2-.9 3.9-.9 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8 1 8.3Z"
+                  /></svg
+              ></span>
               <h3>macOS Intel</h3>
               <p>Intel 芯片 · x64<br />DMG 安装包</p>
-              <a
-                class="button secondary"
-                data-platform="macos-x64"
-                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-x64.dmg"
-                ><span data-download-label>下载 Mac Intel 版</span>
-                <span data-download-arrow>↓</span></a
-              ><small data-package-name>SpacePreview-0.10.14-macos-x64.dmg</small>
+              <div class="download-actions">
+                <a
+                  class="button secondary"
+                  data-platform="macos-x64"
+                  href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-x64.dmg"
+                  ><span data-download-label>下载 Mac Intel 版</span>
+                  <span data-download-arrow>↓</span></a
+                ><small data-package-name>SpacePreview-0.10.14-macos-x64.dmg</small>
+              </div>
             </article>
             <article class="download-card">
-              <span class="os-icon" aria-hidden="true">⌘</span>
+              <span class="os-icon" aria-hidden="true"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M16.5 2c.1 1.3-.4 2.6-1.2 3.5-.8.9-2 1.5-3.2 1.4-.2-1.3.4-2.6 1.2-3.5.9-.9 2.1-1.4 3.2-1.4ZM20.7 17.5c-.5 1.1-.8 1.6-1.5 2.6-.9 1.3-2.1 2.9-3.6 2.9-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.5 0-2.6-1.4-3.5-2.7C2.2 16.6 1.5 12 3 9.6c1-1.6 2.5-2.5 4-2.5 1.6 0 2.6.9 3.9.9 1.2 0 2-.9 3.9-.9 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8 1 8.3Z"
+                  /></svg
+              ></span>
               <h3>macOS ARM</h3>
               <p>Apple Silicon · ARM64<br />DMG 安装包</p>
-              <a
-                class="button secondary"
-                data-platform="macos-arm64"
-                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-arm64.dmg"
-                ><span data-download-label>下载 Mac ARM 版</span>
-                <span data-download-arrow>↓</span></a
-              ><small data-package-name>SpacePreview-0.10.14-macos-arm64.dmg</small>
+              <div class="download-actions">
+                <a
+                  class="button secondary"
+                  data-platform="macos-arm64"
+                  href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-arm64.dmg"
+                  ><span data-download-label>下载 Mac ARM 版</span>
+                  <span data-download-arrow>↓</span></a
+                ><small data-package-name>SpacePreview-0.10.14-macos-arm64.dmg</small>
+              </div>
             </article>
             <article class="download-card">
-              <span class="os-icon terminal-icon" aria-hidden="true">&gt;_</span>
+              <span class="os-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="4" width="20" height="16" rx="4" />
+                  <path d="m6 9 3 3-3 3m7 0h5" /></svg
+              ></span>
               <h3>Linux</h3>
               <p>Intel / AMD · x64<br />AppImage / DEB</p>
-              <a
-                class="button secondary"
-                data-platform="linux"
-                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.AppImage"
-                ><span data-download-label>下载 Linux 版</span>
-                <span data-download-arrow>↓</span></a
-              ><small data-package-name>SpacePreview-0.10.14-linux-x64.AppImage</small
-              ><small
-                ><a
-                  class="text-link"
-                  data-platform="linux-deb"
-                  href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.deb"
-                  ><span data-download-label>下载 DEB</span> <span data-download-arrow>↓</span></a
-                ></small
-              >
+              <div class="download-actions">
+                <a
+                  class="button secondary"
+                  data-platform="linux"
+                  href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.AppImage"
+                  ><span data-download-label>AppImage</span> <span data-download-arrow>↓</span></a
+                ><small data-package-name>SpacePreview-0.10.14-linux-x64.AppImage</small
+                ><small
+                  ><a
+                    class="text-link"
+                    data-platform="linux-deb"
+                    href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.deb"
+                    ><span data-download-label>DEB</span> <span data-download-arrow>↓</span></a
+                  ></small
+                >
+              </div>
             </article>
           </div>
           <p class="download-note">
@@ -645,13 +565,6 @@
               GB 级真实文件的性能验证。
             </p>
           </details>
-          <details>
-            <summary>网站展示的是真实软件界面吗？</summary>
-            <p>
-              是的，以上截图来自 Windows 版瞬览，包括压缩包、代码、Word、PDF、HTML
-              与偏好设置。其他系统的窗口外观可能不同。预览在桌面软件中完成，网站不读取你的本地文件。
-            </p>
-          </details>
         </div>
       </section>
     </main>
@@ -670,11 +583,5 @@
         </div>
       </div>
     </footer>
-    <dialog id="image-dialog" aria-label="软件截图大图">
-      <button class="dialog-close" type="button" aria-label="关闭大图">
-        关闭 <span aria-hidden="true">×</span></button
-      ><img id="dialog-image" alt="" />
-      <p id="dialog-caption"></p>
-    </dialog>
   </body>
 </html>

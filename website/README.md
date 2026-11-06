@@ -1,6 +1,6 @@
 # 瞬览官网
 
-原生 HTML、CSS 和 JavaScript，无框架、无构建步骤、无外部字体或脚本依赖。参考 [Cometixy 官网](https://find.cometix.dev/) 的居中排版、衬线标题和蓝青渐变，使用固定白色主题与真实软件截图呈现产品，不包含价格模块。
+原生 HTML、CSS 和 JavaScript，无框架、无构建步骤、无外部字体或脚本依赖。参考 [Cometixy 官网](https://find.cometix.dev/) 的居中排版、衬线标题和蓝青渐变，使用固定白色主题、轻量动画和紧凑的平台下载卡片呈现产品，不包含价格模块。
 
 ## 本地预览
 
@@ -14,9 +14,10 @@ python -m http.server 8080 --directory website
 
 ## 文件与截图
 
-- `index.html`：产品介绍、真实截图展示、功能、文件类型表格、四个平台下载入口和常见问题。
+- `index.html`：产品介绍、功能、文件类型表格、四个平台下载入口和常见问题；不展示截图区。
 - `styles.css`：白色主题响应式布局，包含居中首屏、渐变按钮、功能卡片与下载区，适配手机与桌面，支持减少动态效果的系统设置。
-- `script.js`：七张截图的切换、方向键导航、图片放大与关闭。不读取本地文件；另通过 GitHub 公共 API 获取最新发布版本与安装包地址。
+- `script.js`：通过 GitHub 公共 API 获取最新发布版本与安装包地址，不读取本地文件。
+- `motion.js`：首屏入场、滚动渐入和背景动画可见性控制；尊重减少动态效果设置，无脚本时内容仍可见。
 - `assets/app-icon.png`：直接使用 `src-tauri/icons/icon.png` 中当前桌面软件的黑色 S 图标，包含页签、导航、首屏和页脚。
 - `assets/preview-*.png`：用户提供的 Windows 版真实截图，按原图复制，未裁剪或重绘软件界面。
 
@@ -32,7 +33,7 @@ python -m http.server 8080 --directory website
 | `preview-html.png`     | `image-9c5f6682-e9ba-4387-a06d-a57b63ad76c0.png` | 本地 HTML 网页      |
 | `preview-settings.png` | `image-178a51b4-78cc-48f2-b3bd-e1ef7012e90c.png` | 通用设置            |
 
-截图按需加载；点击后可放大，支持 Esc、关闭按钮和点击遮罩关闭。不支持 dialog 的浏览器或禁用脚本时，点击图片仍可直接打开原图。所有图片在本文件夹内，不依赖帖子文件或其他本机路径。
+截图资源保留在 assets 中供后续使用，当前页面不展示或加载这些截图。
 
 ## 下载与部署
 
@@ -44,7 +45,7 @@ python -m http.server 8080 --directory website
 
 ## 更新与检查
 
-发布新版时同步更新版本、格式与平台说明。更换截图时同步调整 `script.js` 中的说明、`index.html` 中的默认截图与图片尺寸；更换图标时将 `src-tauri/icons/icon.png` 复制为 `assets/app-icon.png`。
+发布新版时同步更新版本、格式与平台说明；更换图标时将 `src-tauri/icons/icon.png` 复制为 `assets/app-icon.png`。动画由 `motion.js` 和 `styles.css` 管理，进入视口时播放一次，首屏背景在离开视口时暂停。系统启用减少动态效果时禁用动画。
 
 安装项目依赖后，在项目根目录运行：
 
@@ -52,4 +53,4 @@ python -m http.server 8080 --directory website
 node scripts/smoke-website.mjs
 ```
 
-需要本机 Microsoft Edge。检查覆盖离线打开、截图切换与键盘操作、放大与关闭、格式表格、FAQ、最新版本获取、各平台直接下载、接口失败 / 超时 / 缺包回退、导航链接、六种视口宽度、禁用脚本后的内容，以及 Markdown 本地链接。桌面和手机截图保存到忽略跟踪的 `test-results/`。
+需要本机 Microsoft Edge。检查覆盖离线打开、截图区移除、系统图标、格式表格、FAQ、最新版本获取、各平台直接下载、接口失败 / 超时 / 缺包回退、导航链接、六种视口宽度、禁用脚本后的内容，以及 Markdown 本地链接。桌面和手机截图保存到忽略跟踪的 `test-results/`。
