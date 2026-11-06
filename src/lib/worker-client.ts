@@ -21,7 +21,7 @@ export function parseInWorker(
     };
     const timeout =
       ['decoded-image', 'model', 'graphviz'].includes(request.kind) ||
-      request.bytes.byteLength > 512 * 1024
+      Math.max(request.bytes.byteLength, request.entry?.size ?? 0) > 512 * 1024
         ? 120_000
         : 10_000;
     const timer = setTimeout(() => {
