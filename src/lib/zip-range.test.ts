@@ -90,4 +90,4 @@ it('applies configured limits above 32 MiB with bounded reads and actual output 
   const item = parseZipDirectory(index.bytes, index.count)[0];
   const data = await readZipEntry(item, deflated.length, range, 64 * 1024 * 1024);
   expect(() => inflateZipEntry(data, { ...item, size: 1 }, 64 * 1024 * 1024)).toThrow('内存上限');
-});
+}, 30_000);

@@ -1,4 +1,4 @@
-# SpacePreview v0.10.20
+# SpacePreview v0.10.21
 
 ## Markdown 本地图片
 
