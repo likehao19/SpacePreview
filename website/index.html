@@ -11,34 +11,42 @@
     <title>瞬览 SpacePreview · 不必打开，看一眼就好</title>
     <link rel="icon" href="assets/app-icon.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
-    <script src="script.js" defer></script>
-    <script src="motion.js" defer></script>
-    <script src="gallery.js" defer></script>
+    <script src="i18n.js" defer=""></script>
+    <script src="script.js" defer=""></script>
+    <script src="motion.js" defer=""></script>
+    <script src="gallery.js" defer=""></script>
   </head>
   <body>
-    <a class="skip-link" href="#main">跳到主要内容</a>
+    <a class="skip-link" href="#main" data-i18n="copy0">跳到主要内容</a>
     <header class="header">
       <div class="container header-inner">
-        <a class="brand" href="#" aria-label="瞬览首页"
-          ><img src="assets/app-icon.png" width="32" height="32" alt="" /><span
+        <a class="brand" href="#" aria-label="瞬览首页" data-i18n-aria="copy142"
+          ><img src="assets/app-icon.png" width="32" height="32" alt="" /><span data-i18n="copy1"
             >瞬览 <small>SpacePreview</small></span
           ></a
         >
-        <nav class="desktop-nav" aria-label="主导航">
-          <a href="#features">功能</a><a href="#screenshots">界面</a><a href="#formats">格式</a
-          ><a href="#download">下载</a>
+        <nav class="desktop-nav" aria-label="主导航" data-i18n-aria="copy143">
+          <a href="#features" data-i18n="copy3">功能</a
+          ><a href="#screenshots" data-i18n="copy4">界面</a
+          ><a href="#formats" data-i18n="copy5">格式</a
+          ><a href="#download" data-i18n="copy6">下载</a>
         </nav>
         <div class="header-actions">
+          <div class="language-switch" role="group" aria-label="Language">
+            <button type="button" data-lang="zh" aria-pressed="true">中文</button
+            ><button type="button" data-lang="en" aria-pressed="false">EN</button>
+          </div>
           <a
             class="github-link"
             href="https://github.com/likehao19/SpacePreview"
             aria-label="在 GitHub 查看 SpacePreview 源码"
+            data-i18n-aria="copy144"
             ><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true">
               <path
                 d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"
-              /></svg
+              ></path></svg
           ></a>
-          <a class="header-download" href="#download">立即下载</a>
+          <a class="header-download" href="#download" data-i18n="copy7">立即下载</a>
         </div>
       </div>
     </header>
@@ -46,22 +54,27 @@
       <section class="hero container">
         <div class="hero-copy">
           <img class="hero-emblem" src="assets/app-icon.png" width="84" height="84" alt="" />
-          <span class="eyebrow"><i></i> 本地优先 · WINDOWS / MACOS / LINUX</span>
-          <h1>不必打开，<br /><span class="accent">看一眼就好。</span></h1>
-          <p class="hero-description">
+          <span class="eyebrow" data-i18n="copy8"><i></i> 本地优先 · WINDOWS / MACOS / LINUX</span>
+          <h1 data-i18n="copy9">不必打开，<br /><span class="accent">看一眼就好。</span></h1>
+          <p class="hero-description" data-i18n="copy10">
             选中文件，轻按空格。文档、图片、代码、压缩包，<br
               class="desktop-break"
             />都在一个窗口里快速查看，把注意力留给内容本身。
           </p>
           <div class="hero-actions">
-            <a class="button primary" href="#download">立即下载 <span aria-hidden="true">↓</span></a
-            ><a class="button secondary" href="https://github.com/likehao19/SpacePreview"
+            <a class="button primary" href="#download" data-i18n="copy11"
+              >立即下载 <span aria-hidden="true">↓</span></a
+            ><a
+              class="button secondary"
+              href="https://github.com/likehao19/SpacePreview"
+              data-i18n="copy12"
               >查看 GitHub <span aria-hidden="true">↗</span></a
             >
           </div>
           <a class="release-link" href="https://github.com/likehao19/SpacePreview/releases/latest"
-            ><span data-release-label>下载版本</span> <span data-release-version>v0.10.14</span>
-            <span>·</span> 查看最新发布 ↗</a
+            ><span data-release-label="">下载版本</span>
+            <span data-release-version="">v0.10.14</span> <span>·</span
+            ><span data-i18n="copy148"> 查看最新发布 ↗</span></a
           >
         </div>
         <div class="hero-product">
@@ -69,16 +82,19 @@
             <div><strong>Windows</strong><span>x64</span></div>
             <div><strong>macOS</strong><span>Intel / Apple Silicon</span></div>
             <div><strong>Linux</strong><span>x64 · AppImage / DEB</span></div>
-            <div><strong>本地预览</strong><span>只读 · 无需上传</span></div>
+            <div>
+              <strong data-i18n="copy13">本地预览</strong
+              ><span data-i18n="copy14">只读 · 无需上传</span>
+            </div>
           </div>
         </div>
       </section>
       <section class="showcase" id="screenshots">
         <div class="container">
           <div class="section-heading">
-            <span class="eyebrow">UI / 真实软件截图</span>
-            <h2>文件的模样，直接看见。</h2>
-            <p>从压缩包里的图片，到文档里的细节，用一个窗口继续浏览。</p>
+            <span class="eyebrow" data-i18n="copy15">UI / 真实软件截图</span>
+            <h2 data-i18n="copy16">文件的模样，直接看见。</h2>
+            <p data-i18n="copy17">从压缩包里的图片，到文档里的细节，用一个窗口继续浏览。</p>
           </div>
           <div class="screenshot-tabs" role="tablist" aria-label="Screenshots">
             <button
@@ -91,6 +107,8 @@
               data-shot="0"
               data-file="preview-archive.png"
               data-caption="压缩包里，也能直接看图。左侧浏览目录，右侧继续预览。"
+              data-i18n="copy18"
+              data-i18n-caption="copy126"
             >
               压缩包与图片</button
             ><button
@@ -103,6 +121,8 @@
               data-shot="1"
               data-file="preview-code.png"
               data-caption="语法高亮、行号与结构化代码折叠。"
+              data-i18n="copy19"
+              data-i18n-caption="copy127"
             >
               代码高亮</button
             ><button
@@ -115,6 +135,8 @@
               data-shot="2"
               data-file="preview-word.png"
               data-caption="Word 页面与图片一起看，用左侧大纲找到需要的章节。"
+              data-i18n="copy20"
+              data-i18n-caption="copy128"
             >
               Word 文档</button
             ><button
@@ -127,6 +149,8 @@
               data-shot="3"
               data-file="preview-pdf.png"
               data-caption="保留内容层次，按需缩放与连续浏览。"
+              data-i18n="copy21"
+              data-i18n-caption="copy129"
             >
               PDF 阅读</button
             ><button
@@ -139,6 +163,8 @@
               data-shot="4"
               data-file="preview-tar.png"
               data-caption="深入 TAR 目录，直接查看其中的脚本源码。"
+              data-i18n="copy22"
+              data-i18n-caption="copy130"
             >
               TAR 与源码</button
             ><button
@@ -151,6 +177,8 @@
               data-shot="5"
               data-file="preview-html.png"
               data-caption="本地 HTML 网页预览，展示静态布局与样式。"
+              data-i18n="copy23"
+              data-i18n-caption="copy131"
             >
               HTML 网页</button
             ><button
@@ -163,6 +191,8 @@
               data-shot="6"
               data-file="preview-settings.png"
               data-caption="明暗主题、窗口行为与启动选项，按习惯调整。"
+              data-i18n="copy24"
+              data-i18n-caption="copy132"
             >
               偏好设置
             </button>
@@ -177,6 +207,7 @@
               class="screenshot-open"
               href="assets/preview-archive.png"
               aria-label="放大当前软件截图"
+              data-i18n-aria="copy145"
               ><img
                 id="preview-image"
                 src="assets/preview-archive.png"
@@ -196,50 +227,54 @@
       <section class="features container section-space" id="features">
         <div class="section-heading">
           <div>
-            <span class="eyebrow">01 / 为快速查看而设计</span>
-            <h2>少一步打开，多一点专注。</h2>
-            <p>围绕“看一眼”这件小事，把常用能力放在顺手的位置。</p>
+            <span class="eyebrow" data-i18n="copy25">01 / 为快速查看而设计</span>
+            <h2 data-i18n="copy26">少一步打开，多一点专注。</h2>
+            <p data-i18n="copy27">围绕“看一眼”这件小事，把常用能力放在顺手的位置。</p>
           </div>
         </div>
         <div class="feature-grid">
           <article>
             <span class="feature-icon" aria-hidden="true">⌨</span>
-            <h3>空格，直接预览</h3>
-            <p>Windows 资源管理器、桌面与 macOS Finder 中选中文件，按下空格查看，再按一次返回。</p>
+            <h3 data-i18n="copy28">空格，直接预览</h3>
+            <p data-i18n="copy34">
+              Windows 资源管理器、桌面与 macOS Finder 中选中文件，按下空格查看，再按一次返回。
+            </p>
           </article>
           <article>
             <span class="feature-icon" aria-hidden="true">↗</span>
-            <h3>让查看快一步</h3>
-            <p>
+            <h3 data-i18n="copy29">让查看快一步</h3>
+            <p data-i18n="copy35">
               速度与资源占用优先。PDF 按可见页绘制，ZIP 按需读取，切换或关闭时取消旧的解析任务。
             </p>
           </article>
           <article>
             <span class="feature-icon" aria-hidden="true">▤</span>
-            <h3>压缩包里，继续看</h3>
-            <p>
+            <h3 data-i18n="copy30">压缩包里，继续看</h3>
+            <p data-i18n="copy36">
               浏览 ZIP、TAR、7Z 等归档的目录层级，打开其中支持的图片、文本与文档，无需先完整解压。
             </p>
           </article>
           <article>
             <span class="feature-icon" aria-hidden="true">Aa</span>
-            <h3>阅读，清晰有序</h3>
-            <p>
+            <h3 data-i18n="copy31">阅读，清晰有序</h3>
+            <p data-i18n="copy37">
               Word / Markdown 大纲、文本搜索、字体字号和缩放。代码高亮，结构化代码支持按条件折叠。
             </p>
           </article>
           <article>
             <span class="feature-icon" aria-hidden="true">⌂</span>
-            <h3>本地文件，本地处理</h3>
-            <p>
+            <h3 data-i18n="copy32">本地文件，本地处理</h3>
+            <p data-i18n="copy38">
               只读预览，不修改原文件，不上传内容。文档脚本与 Office 宏不会执行，Notebook
               单元格不会运行。
             </p>
           </article>
           <article>
             <span class="feature-icon" aria-hidden="true">⚙</span>
-            <h3>按你的习惯使用</h3>
-            <p>明暗主题、自定义预览键、可选开机自启动和应用内更新，工具集中在「更多」菜单中。</p>
+            <h3 data-i18n="copy33">按你的习惯使用</h3>
+            <p data-i18n="copy39">
+              明暗主题、自定义预览键、可选开机自启动和应用内更新，工具集中在「更多」菜单中。
+            </p>
           </article>
         </div>
       </section>
@@ -248,206 +283,213 @@
         <div class="container section-space">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">02 / 多种内容，一个窗口</span>
-              <h2>不止图片，也不止文档。</h2>
-              <p>常见格式随手查看，专业内容也有各自的预览方式。</p>
+              <span class="eyebrow" data-i18n="copy40">02 / 多种内容，一个窗口</span>
+              <h2 data-i18n="copy41">不止图片，也不止文档。</h2>
+              <p data-i18n="copy42">常见格式随手查看，专业内容也有各自的预览方式。</p>
             </div>
             <a
               class="text-link"
               href="https://github.com/likehao19/SpacePreview/blob/main/docs/FORMAT_PARITY.md"
+              data-i18n="copy43"
               >完整能力与测试状态 ↗</a
             >
           </div>
           <div class="format-grid">
             <article>
               <span class="format-label">DOCUMENT</span>
-              <h3>文档与阅读</h3>
+              <h3 data-i18n="copy44">文档与阅读</h3>
               <p>PDF · Word · Markdown · EPUB · RTF</p>
             </article>
             <article>
               <span class="format-label">IMAGE</span>
-              <h3>图片与设计</h3>
-              <p>PNG · SVG · PSD · HEIC · TIFF · 部分相机 RAW</p>
+              <h3 data-i18n="copy45">图片与设计</h3>
+              <p data-i18n="copy50">PNG · SVG · PSD · HEIC · TIFF · 部分相机 RAW</p>
             </article>
             <article>
               <span class="format-label">CODE</span>
-              <h3>代码与网页</h3>
+              <h3 data-i18n="copy46">代码与网页</h3>
               <p>TypeScript · JSON · XML · HTML · Python</p>
             </article>
             <article>
               <span class="format-label">ARCHIVE</span>
-              <h3>压缩包与容器</h3>
+              <h3 data-i18n="copy47">压缩包与容器</h3>
               <p>ZIP · TAR · 7Z · RAR · ASAR</p>
             </article>
             <article>
               <span class="format-label">DATA</span>
-              <h3>表格与数据</h3>
+              <h3 data-i18n="copy48">表格与数据</h3>
               <p>XLSX · CSV · TSV · ODS · SQLite</p>
             </article>
             <article>
               <span class="format-label">MORE</span>
-              <h3>三维与更多</h3>
-              <p>STL · OBJ · STEP · 字体 · 音视频</p>
+              <h3 data-i18n="copy49">三维与更多</h3>
+              <p data-i18n="copy51">STL · OBJ · STEP · 字体 · 音视频</p>
             </article>
           </div>
           <details class="all-formats">
-            <summary>展开查看已接入的文件类型与支持范围 <span aria-hidden="true">＋</span></summary>
+            <summary data-i18n="copy52">
+              展开查看已接入的文件类型与支持范围 <span aria-hidden="true">＋</span>
+            </summary>
             <div class="format-table-wrap">
               <table class="format-table">
                 <thead>
                   <tr>
-                    <th scope="col">文件类别</th>
-                    <th scope="col">代表格式 / 扩展名（含有限支持）</th>
+                    <th scope="col" data-i18n="copy53">文件类别</th>
+                    <th scope="col" data-i18n="copy54">代表格式 / 扩展名（含有限支持）</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <th scope="row">常见图片</th>
+                    <th scope="row" data-i18n="copy55">常见图片</th>
                     <td>JPG、JPEG、JFIF、PNG、APNG、GIF、WebP、SVG、BMP、ICO、AVIF</td>
                   </tr>
                   <tr>
-                    <th scope="row">TIFF 多页图像</th>
+                    <th scope="row" data-i18n="copy56">TIFF 多页图像</th>
                     <td>TIF、TIFF</td>
                   </tr>
                   <tr>
-                    <th scope="row">专业图像</th>
-                    <td>
+                    <th scope="row" data-i18n="copy57">专业图像</th>
+                    <td data-i18n="copy133">
                       PSD、PSB、HEIC、HEIF、DDS、EXR、HDR、JP2、J2K、JXL、QOI、TGA、PCX、XCF 等
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">相机 RAW（部分样本已验证）</th>
-                    <td>ARW、CR2、CR3、DNG、NEF、NRW、ORF、RAF、RW2、PEF、KDC 等</td>
+                    <th scope="row" data-i18n="copy58">相机 RAW（部分样本已验证）</th>
+                    <td data-i18n="copy134">
+                      ARW、CR2、CR3、DNG、NEF、NRW、ORF、RAF、RW2、PEF、KDC 等
+                    </td>
                   </tr>
                   <tr>
-                    <th scope="row">图标与矢量</th>
+                    <th scope="row" data-i18n="copy59">图标与矢量</th>
                     <td>ICNS、ANI、SVGZ、WMF、EMF、CUR</td>
                   </tr>
                   <tr>
-                    <th scope="row">PDF 文档</th>
+                    <th scope="row" data-i18n="copy60">PDF 文档</th>
                     <td>PDF</td>
                   </tr>
                   <tr>
-                    <th scope="row">Word 文档与模板</th>
+                    <th scope="row" data-i18n="copy61">Word 文档与模板</th>
                     <td>DOCX、DOCM、DOTX、DOTM</td>
                   </tr>
                   <tr>
-                    <th scope="row">旧版 Word（文字速览）</th>
+                    <th scope="row" data-i18n="copy62">旧版 Word（文字速览）</th>
                     <td>DOC、DOT</td>
                   </tr>
                   <tr>
-                    <th scope="row">富文本与开放文档</th>
+                    <th scope="row" data-i18n="copy63">富文本与开放文档</th>
                     <td>RTF、ODT、OTT</td>
                   </tr>
                   <tr>
-                    <th scope="row">Markdown</th>
-                    <td>MD、Markdown、MDX、MMD、MDC、MKD、QMD、RMD 等</td>
+                    <th scope="row" data-i18n="copy64">Markdown</th>
+                    <td data-i18n="copy135">MD、Markdown、MDX、MMD、MDC、MKD、QMD、RMD 等</td>
                   </tr>
                   <tr>
-                    <th scope="row">电子书</th>
+                    <th scope="row" data-i18n="copy65">电子书</th>
                     <td>EPUB、FB2</td>
                   </tr>
                   <tr>
-                    <th scope="row">文本与日志</th>
-                    <td>TXT、TEXT、LOG、ASC 等</td>
+                    <th scope="row" data-i18n="copy66">文本与日志</th>
+                    <td data-i18n="copy136">TXT、TEXT、LOG、ASC 等</td>
                   </tr>
                   <tr>
-                    <th scope="row">代码与脚本</th>
-                    <td>
+                    <th scope="row" data-i18n="copy67">代码与脚本</th>
+                    <td data-i18n="copy137">
                       JS、JSX、TS、TSX、PY、JAVA、C、CPP、CS、GO、RS、SWIFT、KT、RB、PHP、LUA、SH、PS1、BAT
                       等
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">配置与数据文本</th>
-                    <td>
+                    <th scope="row" data-i18n="copy68">配置与数据文本</th>
+                    <td data-i18n="copy138">
                       JSON、JSONC、JSONL、XML、YAML、YML、TOML、INI、CONF、ENV、SQL、Dockerfile 等
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">HTML 网页</th>
+                    <th scope="row" data-i18n="copy69">HTML 网页</th>
                     <td>HTML、HTM、XHTML</td>
                   </tr>
                   <tr>
-                    <th scope="row">网页存档与邮件</th>
+                    <th scope="row" data-i18n="copy70">网页存档与邮件</th>
                     <td>MHT、MHTML、EML、MSG</td>
                   </tr>
                   <tr>
-                    <th scope="row">Excel 工作簿与模板</th>
+                    <th scope="row" data-i18n="copy71">Excel 工作簿与模板</th>
                     <td>XLSX、XLSM、XLTX、XLTM、XLS、XLSB、XLT、XLW</td>
                   </tr>
                   <tr>
-                    <th scope="row">分隔符表格与旧数据表</th>
+                    <th scope="row" data-i18n="copy72">分隔符表格与旧数据表</th>
                     <td>CSV、TSV、TAB、PSV、DBF、DIF、SLK、SYLK</td>
                   </tr>
                   <tr>
-                    <th scope="row">OpenDocument 表格</th>
+                    <th scope="row" data-i18n="copy73">OpenDocument 表格</th>
                     <td>ODS、OTS</td>
                   </tr>
                   <tr>
-                    <th scope="row">PowerPoint 文稿与模板</th>
+                    <th scope="row" data-i18n="copy74">PowerPoint 文稿与模板</th>
                     <td>PPTX、PPTM、POTX、POTM、PPSX、PPSM、PPT、PPS、POT</td>
                   </tr>
                   <tr>
-                    <th scope="row">OpenDocument 演示</th>
+                    <th scope="row" data-i18n="copy75">OpenDocument 演示</th>
                     <td>ODP、OTP</td>
                   </tr>
                   <tr>
-                    <th scope="row">ZIP 及同类容器</th>
-                    <td>ZIP、ZIP64、JAR、APK、IPA、CBZ、WHL、NUPKG、VSIX、XPI 等</td>
+                    <th scope="row" data-i18n="copy76">ZIP 及同类容器</th>
+                    <td data-i18n="copy139">
+                      ZIP、ZIP64、JAR、APK、IPA、CBZ、WHL、NUPKG、VSIX、XPI 等
+                    </td>
                   </tr>
                   <tr>
-                    <th scope="row">其他压缩包</th>
-                    <td>
+                    <th scope="row" data-i18n="copy77">其他压缩包</th>
+                    <td data-i18n="copy140">
                       7Z、RAR、TAR、TGZ、GZ、BZ2、XZ、ZST、ZSTD、CB7、CBR、CBT、AR、CPIO、XAR 等
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">应用与资源容器（目录 / 流列表）</th>
-                    <td>
+                    <th scope="row" data-i18n="copy78">应用与资源容器（目录 / 流列表）</th>
+                    <td data-i18n="copy141">
                       ASAR、CRX、CFB、MSI、MSP、APPX、MSIX、AAB、HAP、WGT、部分 Chromium PAK 等
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">二维 CAD</th>
+                    <th scope="row" data-i18n="copy79">二维 CAD</th>
                     <td>DXF</td>
                   </tr>
                   <tr>
-                    <th scope="row">三维模型与 CAD</th>
+                    <th scope="row" data-i18n="copy80">三维模型与 CAD</th>
                     <td>
                       STL、OBJ、PLY、3DS、FBX、3MF、BLEND、GLB、GLTF、DAE、PCD、STEP、STP、IGES、IGS、BREP
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">SQLite 数据库</th>
+                    <th scope="row" data-i18n="copy81">SQLite 数据库</th>
                     <td>SQLITE、SQLITE3、DB、DB3、SDB、S3DB、SL3、SQLITEDB、GPKG、MBTILES</td>
                   </tr>
                   <tr>
-                    <th scope="row">字体</th>
+                    <th scope="row" data-i18n="copy82">字体</th>
                     <td>TTF、OTF、WOFF、WOFF2、TTC</td>
                   </tr>
                   <tr>
-                    <th scope="row">技术文档与图表</th>
+                    <th scope="row" data-i18n="copy83">技术文档与图表</th>
                     <td>ADOC、ASCIIDOC、AD、Mermaid、MMD、Graphviz DOT/GV</td>
                   </tr>
                   <tr>
-                    <th scope="row">Notebook</th>
+                    <th scope="row" data-i18n="copy84">Notebook</th>
                     <td>IPYNB</td>
                   </tr>
                   <tr>
-                    <th scope="row">Lottie 动画</th>
+                    <th scope="row" data-i18n="copy85">Lottie 动画</th>
                     <td>LOTTIE、LOTTIE.JSON、TGS</td>
                   </tr>
                   <tr>
-                    <th scope="row">设计文件（仅内置预览图）</th>
+                    <th scope="row" data-i18n="copy86">设计文件（仅内置预览图）</th>
                     <td>KRA、Sketch、XD、XMind、FIG、CDR、PIX、PIP、PDN</td>
                   </tr>
                   <tr>
-                    <th scope="row">音频</th>
+                    <th scope="row" data-i18n="copy87">音频</th>
                     <td>MP3、WAV、OGG、FLAC、AAC、M4A</td>
                   </tr>
                   <tr>
-                    <th scope="row">视频</th>
+                    <th scope="row" data-i18n="copy88">视频</th>
                     <td>MP4、WebM、MOV、M4V、OGV</td>
                   </tr>
                 </tbody>
@@ -455,39 +497,39 @@
             </div>
           </details>
           <div class="format-boundaries">
-            <p>
+            <p data-i18n="copy89">
               <strong>接入引擎不等于所有文件变体均已验证。</strong>
               表格保留已接入的类别，具体范围如下：
             </p>
             <ul>
-              <li>
+              <li data-i18n="copy90">
                 <strong>相机 RAW：</strong>本次验证 CR2、KDC
                 样本，其余列出的相机格式已接入但尚未逐一验收；通用 .raw 文件不支持。
               </li>
-              <li>
+              <li data-i18n="copy91">
                 <strong>设计文件：</strong>KRA、Sketch、XD、XMind、FIG、CDR、PIX/PIP、PDN
                 仅尝试读取内置预览图，已用结构样本验证；非 ZIP FIG、旧版 CDR/PDN
                 等变体不保证可用，不还原完整设计画布。
               </li>
-              <li>
+              <li data-i18n="copy92">
                 <strong>Office：</strong>旧 DOC 仅文字速览；PPT 静态页面依赖 Windows 本地安装并激活
                 PowerPoint。复杂 Word 排版与 OpenDocument 原始布局可能不同。
               </li>
-              <li>
+              <li data-i18n="copy93">
                 <strong>三维 / CAD：</strong>本次验证 BLEND 样本为 Blender
                 2.48，不保证所有新版；GLTF 需内嵌几何，不加载外部贴图与动画。LWO
                 已接入但尚未验收，暂不列入上表。
               </li>
-              <li>
+              <li data-i18n="copy94">
                 <strong>容器与数据库：</strong>MSI 等仅浏览文件 / 流，不等于安装包语义解析；PAK 仅限
                 Chromium 变体；DB 等仅识别 SQLite 内容，GPKG / MBTiles 不显示地图。
               </li>
-              <li>
+              <li data-i18n="copy95">
                 <strong>图片、字体与媒体：</strong>依赖系统和解码器的支持范围；WMF/EMF 为 GDI
                 子集，WOFF2 的完整字形解析有限。音视频不保证所有内部编码均可播放。
               </li>
             </ul>
-            <p>
+            <p data-i18n="copy96">
               本轮验收环境为 Windows
               Edge，其他系统未在本轮实机验收；不同格式还有独立的大小、页数等限制。<a
                 class="text-link"
@@ -501,30 +543,32 @@
 
       <section class="workflow container section-space">
         <div>
-          <span class="eyebrow">03 / 一个简单的动作</span>
-          <h2>看完，回到手头的事。</h2>
-          <p>不用为一次临时查看打断工作节奏。<br />从文件列表到内容，再自然地回到文件列表。</p>
+          <span class="eyebrow" data-i18n="copy97">03 / 一个简单的动作</span>
+          <h2 data-i18n="copy98">看完，回到手头的事。</h2>
+          <p data-i18n="copy99">
+            不用为一次临时查看打断工作节奏。<br />从文件列表到内容，再自然地回到文件列表。
+          </p>
         </div>
         <ol>
           <li>
             <span>1</span>
             <div>
-              <h3>选中</h3>
-              <p>在资源管理器或 Finder 中选择文件</p>
+              <h3 data-i18n="copy100">选中</h3>
+              <p data-i18n="copy103">在资源管理器或 Finder 中选择文件</p>
             </div>
           </li>
           <li>
             <span>2</span>
             <div>
-              <h3>按下 <kbd>Space</kbd></h3>
-              <p>浏览内容，用方向键继续切换文件</p>
+              <h3 data-i18n="copy101">按下 <kbd>Space</kbd></h3>
+              <p data-i18n="copy104">浏览内容，用方向键继续切换文件</p>
             </div>
           </li>
           <li>
             <span>3</span>
             <div>
-              <h3>看完，关闭</h3>
-              <p>再按空格或 Esc，继续原来的工作</p>
+              <h3 data-i18n="copy102">看完，关闭</h3>
+              <p data-i18n="copy105">再按空格或 Esc，继续原来的工作</p>
             </div>
           </li>
         </ol>
@@ -534,13 +578,11 @@
         <div class="container section-space">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">04 / 选择你的平台</span>
-              <h2>下一次查看，从瞬览开始。</h2>
+              <span class="eyebrow" data-i18n="copy106">04 / 选择你的平台</span>
+              <h2 data-i18n="copy107">下一次查看，从瞬览开始。</h2>
               <p>
-                点击按钮直接下载对应系统的安装包。<span
-                  class="release-state"
-                  data-release-state
-                  role="status"
+                <span data-i18n="copy149"> 点击按钮直接下载对应系统的安装包。</span
+                ><span class="release-state" data-release-state="" role="status"
                   >备用版本 v0.10.14</span
                 >
               </p>
@@ -553,18 +595,18 @@
                   <path
                     fill="currentColor"
                     d="M2 3h9v9H2zm11 0h9v9h-9zM2 14h9v9H2zm11 0h9v9h-9z"
-                  /></svg
+                  ></path></svg
               ></span>
               <h3>Windows</h3>
-              <p>Windows 10 / 11 · x64<br />安装程序 · 需要 WebView2</p>
+              <p data-i18n="copy108">Windows 10 / 11 · x64<br />安装程序 · 需要 WebView2</p>
               <div class="download-actions">
                 <a
                   class="button primary"
                   data-platform="windows"
                   href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-windows-x64-setup.exe"
-                  ><span data-download-label>下载 Windows 版</span>
-                  <span data-download-arrow>↓</span></a
-                ><small data-package-name>SpacePreview-0.10.14-windows-x64-setup.exe</small>
+                  ><span data-download-label="" data-i18n="copy112">下载 Windows 版</span>
+                  <span data-download-arrow="">↓</span></a
+                ><small data-package-name="">SpacePreview-0.10.14-windows-x64-setup.exe</small>
               </div>
             </article>
             <article class="download-card">
@@ -573,18 +615,18 @@
                   <path
                     fill="currentColor"
                     d="M16.5 2c.1 1.3-.4 2.6-1.2 3.5-.8.9-2 1.5-3.2 1.4-.2-1.3.4-2.6 1.2-3.5.9-.9 2.1-1.4 3.2-1.4ZM20.7 17.5c-.5 1.1-.8 1.6-1.5 2.6-.9 1.3-2.1 2.9-3.6 2.9-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.5 0-2.6-1.4-3.5-2.7C2.2 16.6 1.5 12 3 9.6c1-1.6 2.5-2.5 4-2.5 1.6 0 2.6.9 3.9.9 1.2 0 2-.9 3.9-.9 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8 1 8.3Z"
-                  /></svg
+                  ></path></svg
               ></span>
               <h3>macOS Intel</h3>
-              <p>Intel 芯片 · x64<br />DMG 安装包</p>
+              <p data-i18n="copy109">Intel 芯片 · x64<br />DMG 安装包</p>
               <div class="download-actions">
                 <a
                   class="button secondary"
                   data-platform="macos-x64"
                   href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-x64.dmg"
-                  ><span data-download-label>下载 Mac Intel 版</span>
-                  <span data-download-arrow>↓</span></a
-                ><small data-package-name>SpacePreview-0.10.14-macos-x64.dmg</small>
+                  ><span data-download-label="" data-i18n="copy113">下载 Mac Intel 版</span>
+                  <span data-download-arrow="">↓</span></a
+                ><small data-package-name="">SpacePreview-0.10.14-macos-x64.dmg</small>
               </div>
             </article>
             <article class="download-card">
@@ -593,18 +635,18 @@
                   <path
                     fill="currentColor"
                     d="M16.5 2c.1 1.3-.4 2.6-1.2 3.5-.8.9-2 1.5-3.2 1.4-.2-1.3.4-2.6 1.2-3.5.9-.9 2.1-1.4 3.2-1.4ZM20.7 17.5c-.5 1.1-.8 1.6-1.5 2.6-.9 1.3-2.1 2.9-3.6 2.9-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.5 0-2.6-1.4-3.5-2.7C2.2 16.6 1.5 12 3 9.6c1-1.6 2.5-2.5 4-2.5 1.6 0 2.6.9 3.9.9 1.2 0 2-.9 3.9-.9 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8 1 8.3Z"
-                  /></svg
+                  ></path></svg
               ></span>
               <h3>macOS ARM</h3>
-              <p>Apple Silicon · ARM64<br />DMG 安装包</p>
+              <p data-i18n="copy110">Apple Silicon · ARM64<br />DMG 安装包</p>
               <div class="download-actions">
                 <a
                   class="button secondary"
                   data-platform="macos-arm64"
                   href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-arm64.dmg"
-                  ><span data-download-label>下载 Mac ARM 版</span>
-                  <span data-download-arrow>↓</span></a
-                ><small data-package-name>SpacePreview-0.10.14-macos-arm64.dmg</small>
+                  ><span data-download-label="" data-i18n="copy114">下载 Mac ARM 版</span>
+                  <span data-download-arrow="">↓</span></a
+                ><small data-package-name="">SpacePreview-0.10.14-macos-arm64.dmg</small>
               </div>
             </article>
             <article class="download-card">
@@ -618,37 +660,39 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <rect x="2" y="4" width="20" height="16" rx="4" />
-                  <path d="m6 9 3 3-3 3m7 0h5" /></svg
+                  <rect x="2" y="4" width="20" height="16" rx="4"></rect>
+                  <path d="m6 9 3 3-3 3m7 0h5"></path></svg
               ></span>
               <h3>Linux</h3>
-              <p>Intel / AMD · x64<br />AppImage / DEB</p>
+              <p data-i18n="copy111">Intel / AMD · x64<br />AppImage / DEB</p>
               <div class="download-actions">
                 <a
                   class="button secondary"
                   data-platform="linux"
                   href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.AppImage"
-                  ><span data-download-label>AppImage</span> <span data-download-arrow>↓</span></a
-                ><small data-package-name>SpacePreview-0.10.14-linux-x64.AppImage</small
+                  ><span data-download-label="">AppImage</span>
+                  <span data-download-arrow="">↓</span></a
+                ><small data-package-name="">SpacePreview-0.10.14-linux-x64.AppImage</small
                 ><small
                   ><a
                     class="text-link"
                     data-platform="linux-deb"
                     href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.deb"
-                    ><span data-download-label>DEB</span> <span data-download-arrow>↓</span></a
+                    ><span data-download-label="">DEB</span>
+                    <span data-download-arrow="">↓</span></a
                   ></small
                 >
               </div>
             </article>
           </div>
-          <p class="download-note">
+          <p class="download-note" data-i18n="copy115">
             macOS 使用临时签名，尚未进行 Apple Developer ID 签名与公证；Finder 预览需授权。Linux
             暂不支持文件管理器空格唤起。<a
               href="https://github.com/likehao19/SpacePreview/blob/main/README.md"
               >查看安装说明 ↗</a
             >
           </p>
-          <p class="all-releases">
+          <p class="all-releases" data-i18n="copy116">
             旧版本与版本说明：<a
               class="text-link"
               href="https://github.com/likehao19/SpacePreview/releases"
@@ -661,27 +705,27 @@
       <section class="faq-section container section-space">
         <div>
           <span class="eyebrow">FAQ</span>
-          <h2>开始之前。</h2>
+          <h2 data-i18n="copy117">开始之前。</h2>
         </div>
         <div class="faq-list">
           <details>
-            <summary>三个系统都支持空格唤起吗？</summary>
-            <p>
+            <summary data-i18n="copy118">三个系统都支持空格唤起吗？</summary>
+            <p data-i18n="copy121">
               Windows 支持资源管理器和桌面；macOS 已接入
               Finder，需要辅助功能与自动化授权，相关兼容性仍需真机验收。Linux 当前通过拖入文件或
               Ctrl+O 预览，尚未接入文件管理器空格唤起。
             </p>
           </details>
           <details>
-            <summary>Office 文档能完全还原吗？</summary>
-            <p>
+            <summary data-i18n="copy119">Office 文档能完全还原吗？</summary>
+            <p data-i18n="copy122">
               Word 支持页面、图片、表格和大纲，复杂排版、公式及缺失字体可能影响显示。PowerPoint
               静态页面需要 Windows 本地安装并激活 Microsoft PowerPoint；其他情况提供文字速览。
             </p>
           </details>
           <details>
-            <summary>大文件预览有什么限制？</summary>
-            <p>
+            <summary data-i18n="copy120">大文件预览有什么限制？</summary>
+            <p data-i18n="copy123">
               默认单文件大小上限为 512 MiB，可在偏好设置中调整为 16–2048 MiB；压缩包内单文件默认 256
               MiB，最高可设为 1024
               MiB，各格式仍有独立解析限制。部分格式完整读取后再展示，实际速度与内存占用取决于文件及设备；尚未完成
@@ -694,20 +738,21 @@
     <footer class="footer">
       <div class="container footer-inner">
         <a class="brand" href="#"
-          ><img src="assets/app-icon.png" width="27" height="27" alt="" /><span
+          ><img src="assets/app-icon.png" width="27" height="27" alt="" /><span data-i18n="copy2"
             >瞬览 <small>SpacePreview</small></span
           ></a
         >
-        <p>为每一次“看一眼”而设计。</p>
+        <p data-i18n="copy124">为每一次“看一眼”而设计。</p>
         <div>
-          <a href="https://github.com/likehao19/SpacePreview/issues">问题反馈</a
+          <a href="https://github.com/likehao19/SpacePreview/issues" data-i18n="copy125">问题反馈</a
           ><a href="https://github.com/likehao19/SpacePreview">GitHub</a
           ><a href="https://github.com/likehao19/SpacePreview/releases">Releases</a>
         </div>
       </div>
     </footer>
-    <dialog id="image-dialog" aria-label="软件截图大图">
-      <button class="dialog-close" type="button" aria-label="关闭大图">×</button
+    <dialog id="image-dialog" aria-label="软件截图大图" data-i18n-aria="copy146">
+      <button class="dialog-close" type="button" aria-label="关闭大图" data-i18n-aria="copy147">
+        ×</button
       ><img id="dialog-image" alt="" />
       <p id="dialog-caption"></p>
     </dialog>

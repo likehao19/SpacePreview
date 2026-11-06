@@ -7,12 +7,31 @@ const packagePatterns = {
   linux: /-linux-x64\.AppImage$/i,
   'linux-deb': /-linux-x64\.deb$/i,
 };
+const translateRelease = window.SpacePreviewI18n.t;
+let releaseStatus = 'checking';
+let releaseVersion = '';
+
+function renderReleaseState() {
+  document.querySelector('[data-release-state]').textContent = translateRelease(releaseStatus, {
+    version: releaseVersion,
+  });
+  document.querySelector('[data-release-label]').textContent = translateRelease(
+    releaseStatus === 'ready' || releaseStatus === 'partial' ? 'latest' : 'downloadVersion',
+  );
+  document.querySelectorAll('[data-platform][data-unavailable]').forEach((link) => {
+    link.querySelector('[data-download-label]').textContent = translateRelease('releasePage');
+    if (link.classList.contains('button')) {
+      link.closest('.download-card').querySelector('[data-package-name]').textContent =
+        translateRelease('noPackage');
+    }
+  });
+}
+document.addEventListener('site-language-change', renderReleaseState);
 
 async function loadLatestRelease() {
-  const state = document.querySelector('[data-release-state]');
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
-  state.textContent = '正在检查最新版本…';
+  renderReleaseState();
   try {
     const response = await fetch(releaseApi, {
       headers: { Accept: 'application/vnd.github+json' },
@@ -28,7 +47,7 @@ async function loadLatestRelease() {
       throw new Error('Invalid release data');
     }
     document.querySelector('[data-release-version]').textContent = release.tag_name;
-    document.querySelector('[data-release-label]').textContent = '最新版本';
+    releaseVersion = release.tag_name;
     let missingPackage = false;
     document.querySelectorAll('[data-platform]').forEach((link) => {
       const asset = release.assets.find(
@@ -48,18 +67,16 @@ async function loadLatestRelease() {
         }
       } else {
         missingPackage = true;
+        link.dataset.unavailable = 'true';
         link.href = releasePage;
-        link.querySelector('[data-download-label]').textContent = '查看发布页';
         link.querySelector('[data-download-arrow]').textContent = '↗';
-        if (link.classList.contains('button')) {
-          link.closest('.download-card').querySelector('[data-package-name]').textContent =
-            '此版本暂无对应安装包';
-        }
       }
     });
-    state.textContent = `最新版本 ${release.tag_name}${missingPackage ? ' · 部分安装包请查看发布页' : ' · 点击即可下载'}`;
+    releaseStatus = missingPackage ? 'partial' : 'ready';
+    renderReleaseState();
   } catch {
-    state.textContent = '暂时无法检查最新版本，仍可直接下载备用版本 v0.10.14';
+    releaseStatus = 'fallback';
+    renderReleaseState();
   } finally {
     clearTimeout(timeout);
   }

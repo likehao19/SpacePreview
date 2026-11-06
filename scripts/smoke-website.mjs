@@ -29,7 +29,7 @@ const releaseFixture = {
   ],
 };
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
   await page.route(releaseApi, (route) => route.fulfill({ json: releaseFixture }));
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('requestfailed', (request) => {
@@ -133,7 +133,9 @@ try {
   await page.mouse.click(2, 2);
   await expect(page.getByRole('dialog')).not.toBeVisible();
 
-  await expect(page.locator('header a[href="https://github.com/likehao19/SpacePreview"]')).toHaveCount(1);
+  await expect(
+    page.locator('header a[href="https://github.com/likehao19/SpacePreview"]'),
+  ).toHaveCount(1);
   await expect(page.locator('.download-card .os-icon svg')).toHaveCount(4);
   await page.locator('#features').scrollIntoViewIfNeeded();
   await expect(page.locator('#features .section-heading')).toHaveClass(/is-revealed/);
@@ -180,13 +182,16 @@ try {
       });
     }
   }
-  const noJs = await browser.newPage({ javaScriptEnabled: false });
+  const noJs = await browser.newPage({ locale: 'zh-CN', javaScriptEnabled: false });
   await noJs.goto(websiteUrl);
   await expect(noJs.locator('#download')).toBeVisible();
   await expect(noJs.locator('#features')).toBeVisible();
-  await expect(noJs.locator('.screenshot-open')).toHaveAttribute('href', 'assets/preview-archive.png');
+  await expect(noJs.locator('.screenshot-open')).toHaveAttribute(
+    'href',
+    'assets/preview-archive.png',
+  );
   await noJs.close();
-  const reduced = await browser.newPage({ reducedMotion: 'reduce' });
+  const reduced = await browser.newPage({ locale: 'zh-CN', reducedMotion: 'reduce' });
   await reduced.route(releaseApi, (route) => route.fulfill({ json: releaseFixture }));
   await reduced.goto(websiteUrl);
   expect(
@@ -194,8 +199,44 @@ try {
   ).toBe(0);
   await expect(reduced.locator('#features')).toBeVisible();
   await reduced.close();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('h1')).toContainText('Take a quick look.');
+  await expect(page.locator('[data-release-state]')).toContainText('Latest release v99.0.0');
+  await page.getByRole('tab', { name: 'Code highlighting', exact: true }).click();
+  await expect(page.locator('#preview-caption')).toContainText('Syntax highlighting');
+  await expect(page.locator('#preview-image')).toHaveAttribute('alt', 'Code highlighting');
+  await page.locator('.all-formats summary').click();
+  expect((await page.locator('body').innerText()).replace('中文', '')).not.toMatch(
+    /[\u3400-\u9fff]/,
+  );
+  await page.locator('.all-formats summary').click();
+  for (const width of [1440, 1024, 768, 760, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await expect(page.locator('.language-switch')).toBeVisible();
+    await expect(page.locator('nav')).toBeVisible();
+    if (width === 1440 || width === 390) {
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+      await page.screenshot({ path: path.join(root, `test-results/website-en-${width}.png`) });
+    }
+  }
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('[data-release-state]')).toContainText('Latest release v99.0.0');
+  await page.getByRole('button', { name: '中文', exact: true }).click();
+  await expect(page.locator('h1')).toContainText('不必打开');
+  await expect(page.locator('[data-release-state]')).toContainText('最新版本 v99.0.0');
+  const englishDefault = await browser.newPage({ locale: 'en-US' });
+  await englishDefault.route(releaseApi, (route) => route.fulfill({ json: releaseFixture }));
+  await englishDefault.goto(websiteUrl);
+  await expect(englishDefault.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(englishDefault.locator('h1')).toContainText('Take a quick look.');
+  await englishDefault.close();
   for (const scenario of ['http-error', 'invalid-json', 'timeout', 'missing-package']) {
-    const fallback = await browser.newPage();
+    const fallback = await browser.newPage({ locale: 'zh-CN' });
     await fallback.route(releaseApi, async (route) => {
       if (scenario === 'http-error') return route.fulfill({ status: 503, body: 'Unavailable' });
       if (scenario === 'invalid-json')
@@ -220,6 +261,13 @@ try {
         'href',
         releaseBase + packageNames[1],
       );
+      await fallback.getByRole('button', { name: 'EN', exact: true }).click();
+      await expect(fallback.locator('[data-release-state]')).toContainText('Some installers');
+      await expect(fallback.locator('[data-platform="macos-arm64"]')).toContainText('View release');
+      await expect(fallback.locator('[data-platform="macos-arm64"]')).toHaveAttribute(
+        'href',
+        'https://github.com/likehao19/SpacePreview/releases/latest',
+      );
     } else {
       await expect(fallback.locator('[data-release-state]')).toContainText('备用版本 v0.10.14', {
         timeout: 11000,
@@ -229,6 +277,10 @@ try {
         'https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-windows-x64-setup.exe',
       );
       await expect(fallback.locator('[data-release-version]')).toHaveText('v0.10.14');
+      await fallback.getByRole('button', { name: 'EN', exact: true }).click();
+      await expect(fallback.locator('[data-release-state]')).toContainText(
+        'Backup version v0.10.14',
+      );
     }
     await fallback.close();
   }
@@ -252,7 +304,7 @@ try {
   }
   expect(errors).toEqual([]);
   console.log(
-    'Website checks passed: latest release, five direct downloads, architecture/signature filtering, API error/timeout/missing-package fallbacks, current app icon, seven screenshots, keyboard switching, zoom, single GitHub header link, platform icons, FAQ, six responsive widths, offline/no-JS content, Markdown links.',
+    'Website checks passed: bilingual content, browser language detection, saved language, localized release/missing-package states, latest release, five downloads, seven screenshots, keyboard/zoom, single GitHub header icon, six widths in both languages, reduced motion, offline/no-JS content and Markdown links.',
   );
 } finally {
   await browser.close();

@@ -15,8 +15,8 @@
   --navy: #15223c;
   --max-width: 1160px;
   --display:
-    'Iowan Old Style', 'Palatino Linotype', 'Songti SC', STSong,
-    'Noto Serif CJK SC', 'SimSun', serif;
+    'Iowan Old Style', 'Palatino Linotype', 'Songti SC', STSong, 'Noto Serif CJK SC', 'SimSun',
+    serif;
 }
 * {
   box-sizing: border-box;
@@ -30,8 +30,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Microsoft YaHei', sans-serif;
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -865,8 +864,7 @@ footer p {
 /* Compact platform downloads with consistent action rows. */
 .download-section {
   padding: 88px 0;
-  background:
-    radial-gradient(ellipse at 50% 100%, #e9f5ff, transparent 75%), #f8faff;
+  background: radial-gradient(ellipse at 50% 100%, #e9f5ff, transparent 75%), #f8faff;
   border-top: 1px solid #e6edf7;
 }
 .download-section > .container {
@@ -1329,6 +1327,22 @@ footer p {
   align-items: center;
   gap: 14px;
   margin-left: 0;
+}
+.language-switch {
+  display: flex;
+  gap: 3px;
+}
+.language-switch button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.language-switch button[aria-pressed='true'] {
+  color: var(--blue);
+  background: var(--blue-soft);
 }
 .header-actions .github-link,
 .header-actions .github-icon {
