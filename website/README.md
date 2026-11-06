@@ -14,9 +14,10 @@ python -m http.server 8080 --directory website
 
 ## 文件与截图
 
-- `index.html`：产品介绍、功能、文件类型表格、四个平台下载入口和常见问题；不展示截图区。
+- `index.html`：产品介绍、功能、文件类型表格、真实截图、四个平台下载入口和常见问题。
 - `styles.css`：白色主题响应式布局，包含居中首屏、渐变按钮、功能卡片与下载区，适配手机与桌面，支持减少动态效果的系统设置。
 - `script.js`：通过 GitHub 公共 API 获取最新发布版本与安装包地址，不读取本地文件。
+- `gallery.js`：截图切换、方向键导航、点击放大与 Esc 关闭；无脚本时可直接打开原图。
 - `motion.js`：首屏入场、滚动渐入和背景动画可见性控制；尊重减少动态效果设置，无脚本时内容仍可见。
 - `assets/app-icon.png`：直接使用 `src-tauri/icons/icon.png` 中当前桌面软件的黑色 S 图标，包含页签、导航、首屏和页脚。
 - `assets/preview-*.png`：用户提供的 Windows 版真实截图，按原图复制，未裁剪或重绘软件界面。
@@ -33,7 +34,7 @@ python -m http.server 8080 --directory website
 | `preview-html.png`     | `image-9c5f6682-e9ba-4387-a06d-a57b63ad76c0.png` | 本地 HTML 网页      |
 | `preview-settings.png` | `image-178a51b4-78cc-48f2-b3bd-e1ef7012e90c.png` | 通用设置            |
 
-截图资源保留在 assets 中供后续使用，当前页面不展示或加载这些截图。
+展示七张真实截图，按所选标签加载；支持方向键切换和点击放大。图库菜单与墨笺官网采用一致的布局和交互。
 
 ## 下载与部署
 
@@ -53,4 +54,4 @@ python -m http.server 8080 --directory website
 node scripts/smoke-website.mjs
 ```
 
-需要本机 Microsoft Edge。检查覆盖离线打开、截图区移除、系统图标、格式表格、FAQ、最新版本获取、各平台直接下载、接口失败 / 超时 / 缺包回退、导航链接、六种视口宽度、禁用脚本后的内容，以及 Markdown 本地链接。桌面和手机截图保存到忽略跟踪的 `test-results/`。
+需要本机 Microsoft Edge。检查覆盖离线打开、截图切换与放大、头部单一 GitHub 入口、系统图标、格式表格、FAQ、最新版本获取、各平台直接下载、接口失败 / 超时 / 缺包回退、导航链接、六种视口宽度、禁用脚本后的内容，以及 Markdown 本地链接。桌面和手机截图保存到忽略跟踪的 `test-results/`。

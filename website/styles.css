@@ -15,8 +15,8 @@
   --navy: #15223c;
   --max-width: 1160px;
   --display:
-    'Iowan Old Style', 'Palatino Linotype', 'Songti SC', STSong, 'Noto Serif CJK SC', 'SimSun',
-    serif;
+    'Iowan Old Style', 'Palatino Linotype', 'Songti SC', STSong,
+    'Noto Serif CJK SC', 'SimSun', serif;
 }
 * {
   box-sizing: border-box;
@@ -30,7 +30,8 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -864,7 +865,8 @@ footer p {
 /* Compact platform downloads with consistent action rows. */
 .download-section {
   padding: 88px 0;
-  background: radial-gradient(ellipse at 50% 100%, #e9f5ff, transparent 75%), #f8faff;
+  background:
+    radial-gradient(ellipse at 50% 100%, #e9f5ff, transparent 75%), #f8faff;
   border-top: 1px solid #e6edf7;
 }
 .download-section > .container {
@@ -1309,4 +1311,244 @@ footer p {
 .download-actions .text-link:hover {
   background: #edf5ff;
   border-color: #a6c9f4;
+}
+
+/* Shared menu and screenshot presentation across both product sites. */
+.header-inner {
+  gap: 28px;
+}
+.header-inner .desktop-nav {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  margin-left: auto;
+  font-size: 14px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: 0;
+}
+.header-actions .github-link,
+.header-actions .github-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+.header-actions .github-link:hover,
+.header-actions .github-icon:hover {
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+.header-inner nav a {
+  position: relative;
+  padding: 6px 0;
+  font-weight: 500;
+}
+.header-inner nav a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--blue);
+  transition:
+    width 0.2s,
+    left 0.2s;
+}
+.header-inner nav a:hover::after,
+.header-inner nav a:focus-visible::after {
+  left: 0;
+  width: 100%;
+}
+.header-download {
+  font-size: 13px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.showcase {
+  padding: 38px 0 90px;
+}
+.showcase .section-heading {
+  margin-bottom: 28px;
+}
+.showcase .section-heading .eyebrow {
+  margin-bottom: 14px;
+}
+.screenshot-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 9px 8px 18px;
+  scrollbar-width: thin;
+}
+.screenshot-tabs button {
+  flex: none;
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 13px;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s;
+}
+.screenshot-tabs button:hover {
+  color: var(--blue);
+  background: #f3f7fd;
+}
+.screenshot-tabs button[aria-selected='true'] {
+  color: #246dca;
+  background: #edf5ff;
+  border-color: #d3e6fd;
+}
+.screenshot-panel {
+  margin: 0;
+  border: 1px solid #d7e1ee;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 20px 60px #294a7710;
+}
+.screenshot-open {
+  display: block;
+  cursor: zoom-in;
+  background: #f8faff;
+}
+.screenshot-open img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: contain;
+}
+.screenshot-panel figcaption {
+  padding: 15px 20px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+dialog {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 48px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 90px #15223c33;
+}
+dialog::backdrop {
+  background: #182a44b8;
+  backdrop-filter: blur(5px);
+}
+dialog img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100dvh - 150px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+dialog p {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 12px 8px 2px;
+}
+.dialog-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 24px;
+}
+@media (max-width: 1000px) {
+  .header-inner {
+    gap: 18px;
+  }
+  .header-inner .desktop-nav {
+    gap: 20px;
+  }
+  .screenshot-tabs {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 760px) {
+  html {
+    scroll-padding-top: 125px;
+  }
+  .header-inner {
+    height: auto;
+    min-height: 92px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 10px;
+    padding-block: 10px;
+  }
+  .header-inner .desktop-nav {
+    display: flex;
+    order: 3;
+    flex-basis: 100%;
+    justify-content: center;
+    margin: 0;
+    gap: 24px;
+    font-size: 13px;
+  }
+  .header-actions {
+    gap: 8px;
+    margin-left: auto;
+  }
+  .header-actions .header-download {
+    display: none;
+  }
+  .header-actions .github-link,
+  .header-actions .github-icon {
+    display: grid;
+    width: 30px;
+    height: 30px;
+  }
+  .showcase {
+    padding: 24px 0 64px;
+  }
+  .screenshot-tabs button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  .screenshot-panel {
+    border-radius: 12px;
+  }
+  .screenshot-panel figcaption {
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-inner nav a::after,
+  .screenshot-tabs button {
+    transition: none;
+  }
 }

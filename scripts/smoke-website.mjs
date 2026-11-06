@@ -90,13 +90,53 @@ try {
       ),
     );
   };
+  await page.locator('#preview-image').scrollIntoViewIfNeeded();
   await loadedImages();
-  await expect(page.locator('#screenshots, #image-dialog')).toHaveCount(0);
-  await expect(page.locator('a[href="#screenshots"]')).toHaveCount(0);
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(7);
+  for (let index = 0; index < 7; index++) {
+    await tabs.nth(index).click();
+    await expect(tabs.nth(index)).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveCount(1);
+    await expect(page.getByRole('tabpanel')).toHaveAttribute(
+      'aria-labelledby',
+      await tabs.nth(index).getAttribute('id'),
+    );
+    await loadedImages();
+    await expect(page.locator('#preview-image')).not.toHaveAttribute('alt', '');
+    await page.locator('.screenshot-open').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.locator('#dialog-image')).toHaveAttribute(
+      'src',
+      await page.locator('#preview-image').evaluate((image) => image.src),
+    );
+    await loadedImages();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+  }
+  await tabs.first().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: '代码高亮' })).toBeFocused();
+  await expect(page.getByRole('tab', { name: '代码高亮' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.keyboard.press('End');
+  await expect(tabs.last()).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(tabs.first()).toBeFocused();
+  await page.locator('.screenshot-open').click();
+  await page.getByRole('button', { name: '关闭大图' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.locator('.screenshot-open').click();
+  await page.mouse.click(2, 2);
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+
+  await expect(page.locator('header a[href="https://github.com/likehao19/SpacePreview"]')).toHaveCount(1);
   await expect(page.locator('.download-card .os-icon svg')).toHaveCount(4);
   await page.locator('#features').scrollIntoViewIfNeeded();
   await expect(page.locator('#features .section-heading')).toHaveClass(/is-revealed/);
-
   await page.locator('.all-formats summary').click();
   expect(await page.locator('.format-table tbody tr').count()).toBeGreaterThan(30);
   await expect(page.locator('.format-table thead th')).toHaveCount(2);
@@ -144,6 +184,7 @@ try {
   await noJs.goto(websiteUrl);
   await expect(noJs.locator('#download')).toBeVisible();
   await expect(noJs.locator('#features')).toBeVisible();
+  await expect(noJs.locator('.screenshot-open')).toHaveAttribute('href', 'assets/preview-archive.png');
   await noJs.close();
   const reduced = await browser.newPage({ reducedMotion: 'reduce' });
   await reduced.route(releaseApi, (route) => route.fulfill({ json: releaseFixture }));
@@ -211,7 +252,7 @@ try {
   }
   expect(errors).toEqual([]);
   console.log(
-    'Website checks passed: latest release, five direct downloads, architecture/signature filtering, API error/timeout/missing-package fallbacks, current app icon, screenshot section removed, platform icons, FAQ, six responsive widths, offline/no-JS content, Markdown links.',
+    'Website checks passed: latest release, five direct downloads, architecture/signature filtering, API error/timeout/missing-package fallbacks, current app icon, seven screenshots, keyboard switching, zoom, single GitHub header link, platform icons, FAQ, six responsive widths, offline/no-JS content, Markdown links.',
   );
 } finally {
   await browser.close();

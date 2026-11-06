@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
     <script src="motion.js" defer></script>
+    <script src="gallery.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
@@ -23,19 +24,22 @@
             >瞬览 <small>SpacePreview</small></span
           ></a
         >
-        <nav aria-label="主导航">
-          <a href="#features">功能</a><a href="#formats">格式</a><a href="#download">下载</a>
+        <nav class="desktop-nav" aria-label="主导航">
+          <a href="#features">功能</a><a href="#screenshots">界面</a><a href="#formats">格式</a
+          ><a href="#download">下载</a>
         </nav>
-        <a
-          class="github-link"
-          href="https://github.com/likehao19/SpacePreview"
-          aria-label="在 GitHub 查看 SpacePreview 源码"
-          ><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true">
-            <path
-              d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"
-            /></svg
-        ></a>
-        <a class="header-download" href="#download">免费下载 ↓</a>
+        <div class="header-actions">
+          <a
+            class="github-link"
+            href="https://github.com/likehao19/SpacePreview"
+            aria-label="在 GitHub 查看 SpacePreview 源码"
+            ><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"
+              /></svg
+          ></a>
+          <a class="header-download" href="#download">立即下载</a>
+        </div>
       </div>
     </header>
     <main id="main">
@@ -67,6 +71,125 @@
             <div><strong>Linux</strong><span>x64 · AppImage / DEB</span></div>
             <div><strong>本地预览</strong><span>只读 · 无需上传</span></div>
           </div>
+        </div>
+      </section>
+      <section class="showcase" id="screenshots">
+        <div class="container">
+          <div class="section-heading">
+            <span class="eyebrow">UI / 真实软件截图</span>
+            <h2>文件的模样，直接看见。</h2>
+            <p>从压缩包里的图片，到文档里的细节，用一个窗口继续浏览。</p>
+          </div>
+          <div class="screenshot-tabs" role="tablist" aria-label="Screenshots">
+            <button
+              type="button"
+              role="tab"
+              id="shot-0"
+              aria-controls="screenshot-panel"
+              aria-selected="true"
+              tabindex="0"
+              data-shot="0"
+              data-file="preview-archive.png"
+              data-caption="压缩包里，也能直接看图。左侧浏览目录，右侧继续预览。"
+            >
+              压缩包与图片</button
+            ><button
+              type="button"
+              role="tab"
+              id="shot-1"
+              aria-controls="screenshot-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-shot="1"
+              data-file="preview-code.png"
+              data-caption="语法高亮、行号与结构化代码折叠。"
+            >
+              代码高亮</button
+            ><button
+              type="button"
+              role="tab"
+              id="shot-2"
+              aria-controls="screenshot-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-shot="2"
+              data-file="preview-word.png"
+              data-caption="Word 页面与图片一起看，用左侧大纲找到需要的章节。"
+            >
+              Word 文档</button
+            ><button
+              type="button"
+              role="tab"
+              id="shot-3"
+              aria-controls="screenshot-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-shot="3"
+              data-file="preview-pdf.png"
+              data-caption="保留内容层次，按需缩放与连续浏览。"
+            >
+              PDF 阅读</button
+            ><button
+              type="button"
+              role="tab"
+              id="shot-4"
+              aria-controls="screenshot-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-shot="4"
+              data-file="preview-tar.png"
+              data-caption="深入 TAR 目录，直接查看其中的脚本源码。"
+            >
+              TAR 与源码</button
+            ><button
+              type="button"
+              role="tab"
+              id="shot-5"
+              aria-controls="screenshot-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-shot="5"
+              data-file="preview-html.png"
+              data-caption="本地 HTML 网页预览，展示静态布局与样式。"
+            >
+              HTML 网页</button
+            ><button
+              type="button"
+              role="tab"
+              id="shot-6"
+              aria-controls="screenshot-panel"
+              aria-selected="false"
+              tabindex="-1"
+              data-shot="6"
+              data-file="preview-settings.png"
+              data-caption="明暗主题、窗口行为与启动选项，按习惯调整。"
+            >
+              偏好设置
+            </button>
+          </div>
+          <figure
+            class="screenshot-panel"
+            id="screenshot-panel"
+            role="tabpanel"
+            aria-labelledby="shot-0"
+          >
+            <a
+              class="screenshot-open"
+              href="assets/preview-archive.png"
+              aria-label="放大当前软件截图"
+              ><img
+                id="preview-image"
+                src="assets/preview-archive.png"
+                alt="压缩包与图片"
+                width="1250"
+                height="950"
+                decoding="async"
+                loading="lazy"
+            /></a>
+            <figcaption id="preview-caption" aria-live="polite">
+              压缩包里，也能直接看图。左侧浏览目录，右侧继续预览。
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -583,5 +706,10 @@
         </div>
       </div>
     </footer>
+    <dialog id="image-dialog" aria-label="软件截图大图">
+      <button class="dialog-close" type="button" aria-label="关闭大图">×</button
+      ><img id="dialog-image" alt="" />
+      <p id="dialog-caption"></p>
+    </dialog>
   </body>
 </html>
