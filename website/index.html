@@ -35,13 +35,15 @@
               d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"
             /></svg
         ></a>
+        <a class="header-download" href="#download">免费下载 ↓</a>
       </div>
     </header>
     <main id="main">
       <section class="hero container">
         <div class="hero-copy">
+          <img class="hero-emblem" src="assets/app-icon.png" width="84" height="84" alt="" />
           <span class="eyebrow"><i></i> 本地优先 · WINDOWS / MACOS / LINUX</span>
-          <h1>不必打开，<br />看一眼就好。</h1>
+          <h1>不必打开，<br /><span class="accent">看一眼就好。</span></h1>
           <p class="hero-description">
             选中文件，轻按空格。文档、图片、代码、压缩包，<br
               class="desktop-break"
@@ -59,14 +61,6 @@
           >
         </div>
         <div class="hero-product">
-          <div class="icon-tile">
-            <img
-              src="assets/app-icon.png"
-              width="184"
-              height="184"
-              alt="瞬览 SpacePreview 软件图标"
-            />
-          </div>
           <div class="platform-grid">
             <div><strong>Windows</strong><span>x64</span></div>
             <div><strong>macOS</strong><span>Intel / Apple Silicon</span></div>
@@ -645,8 +639,9 @@
           <details>
             <summary>大文件预览有什么限制？</summary>
             <p>
-              默认单文件大小上限为 256 MB，可在偏好设置中调整为 16–1024
-              MB，各格式仍有独立解析限制。部分格式完整读取后再展示，实际速度与内存占用取决于文件及设备；尚未完成
+              默认单文件大小上限为 512 MiB，可在偏好设置中调整为 16–2048 MiB；压缩包内单文件默认 256
+              MiB，最高可设为 1024
+              MiB，各格式仍有独立解析限制。部分格式完整读取后再展示，实际速度与内存占用取决于文件及设备；尚未完成
               GB 级真实文件的性能验证。
             </p>
           </details>

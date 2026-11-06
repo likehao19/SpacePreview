@@ -1,6 +1,6 @@
 # 瞬览官网
 
-原生 HTML、CSS 和 JavaScript，无框架、无构建步骤、无外部字体或脚本依赖。以白底、深色标题、蓝色按钮和真实软件截图呈现产品，样式参考 [InkNote 官网](https://inknote.likh.cn/)。
+原生 HTML、CSS 和 JavaScript，无框架、无构建步骤、无外部字体或脚本依赖。参考 [Cometixy 官网](https://find.cometix.dev/) 的居中排版、衬线标题和蓝青渐变，使用固定白色主题与真实软件截图呈现产品，不包含价格模块。
 
 ## 本地预览
 
@@ -15,7 +15,7 @@ python -m http.server 8080 --directory website
 ## 文件与截图
 
 - `index.html`：产品介绍、真实截图展示、功能、文件类型表格、四个平台下载入口和常见问题。
-- `styles.css`：白底蓝色响应式布局，适配手机与桌面，支持减少动态效果的系统设置。
+- `styles.css`：白色主题响应式布局，包含居中首屏、渐变按钮、功能卡片与下载区，适配手机与桌面，支持减少动态效果的系统设置。
 - `script.js`：七张截图的切换、方向键导航、图片放大与关闭。不读取本地文件；另通过 GitHub 公共 API 获取最新发布版本与安装包地址。
 - `assets/app-icon.png`：直接使用 `src-tauri/icons/icon.png` 中当前桌面软件的黑色 S 图标，包含页签、导航、首屏和页脚。
 - `assets/preview-*.png`：用户提供的 Windows 版真实截图，按原图复制，未裁剪或重绘软件界面。
