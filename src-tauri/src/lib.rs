@@ -11,6 +11,8 @@ use tauri::{Emitter, Manager, State};
 
 mod autostart;
 mod diagnostics;
+mod dwg;
+pub use dwg::worker_main as dwg_worker_main;
 mod shortcut;
 use autostart::{autostart_enabled, set_autostart};
 
@@ -586,6 +588,8 @@ pub fn run() {
             cancel_file_navigation,
             list_directory,
             open_default,
+            dwg::read_dwg,
+            dwg::cancel_dwg,
             open_project_page,
             initial_paths,
             autostart_enabled,

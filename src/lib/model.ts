@@ -15,14 +15,17 @@ export function readModel(bytes: Uint8Array, name: string): Float32Array {
     const count = bytes.length >= 84 ? view.getUint32(80, true) : 0;
     if (bytes.length >= 84 && 84 + count * 50 === bytes.length) {
       if (count > MAX_TRIANGLES) throw new Error('模型超过 250,000 个三角面。');
-      for (let i = 0; i < count; i++)
-        triangle(
-          Array.from({ length: 3 }, (_, v) =>
-            Array.from({ length: 3 }, (_, axis) =>
-              view.getFloat32(84 + i * 50 + 12 + v * 12 + axis * 4, true),
-            ),
-          ),
-        );
+      const positions = new Float32Array(count * 9);
+      for (let i = 0; i < count; i++) {
+        const start = 84 + i * 50 + 12;
+        for (let axis = 0; axis < 9; axis++) {
+          const value = view.getFloat32(start + axis * 4, true);
+          if (!Number.isFinite(value)) throw new Error('模型包含无效顶点。');
+          positions[i * 9 + axis] = value;
+        }
+      }
+      if (!count) throw new Error('模型没有可显示的三角面。');
+      return positions;
     } else {
       const text = decodeText(bytes).text;
       if (!/^\s*solid\b/i.test(text) || !/endsolid\b/i.test(text))

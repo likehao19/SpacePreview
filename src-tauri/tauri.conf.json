@@ -36,7 +36,8 @@
     "active": true,
     "resources": {
       "../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
-      "../public/engines/licenses/": "licenses/"
+      "../public/engines/licenses/": "licenses/",
+      "../third-party/": "third-party/"
     },
     "targets": ["nsis"],
     "shortDescription": "瞬览 — 不必打开，看一眼就好",

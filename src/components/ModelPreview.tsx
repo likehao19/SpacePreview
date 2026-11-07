@@ -12,6 +12,9 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
   const [points, setPoints] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
+    setError('');
+    setTriangles(0);
+    setPoints(false);
     let dispose = () => {};
     const load = async () => {
       const [result, THREE, { OrbitControls }] = await Promise.all([
@@ -64,9 +67,13 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
           ? new THREE.Points(geometry, pointMaterial)
           : new THREE.Mesh(geometry, material),
       );
-      const edges = new THREE.EdgesGeometry(geometry);
+      // Edge extraction hashes all triangles; keep it off the large-model first-paint path.
+      const edges =
+        !result.points && result.positions!.length / 9 <= 20000
+          ? new THREE.EdgesGeometry(geometry)
+          : undefined;
       const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x506879 });
-      if (!result.points) scene.add(new THREE.LineSegments(edges, edgeMaterial));
+      if (edges) scene.add(new THREE.LineSegments(edges, edgeMaterial));
       scene.add(new THREE.HemisphereLight(0xe9f2ff, 0x68727e, 1));
       const light = new THREE.DirectionalLight(0xffffff, 1.8);
       light.position.set(2, 3, 4);
@@ -108,7 +115,7 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
         observer.disconnect();
         controls.dispose();
         geometry.dispose();
-        edges.dispose();
+        edges?.dispose();
         edgeMaterial.dispose();
         material.dispose();
         pointMaterial.dispose();

@@ -393,3 +393,28 @@ v0.2.1 已通过上述自动测试与 8 项生产引擎检查。Windows UI 工�
 - 首次切换后台枚举普通文件名，最多检查 10000 个目录项，超限显示提示，不返回不完整列表；随后复用目录列表，只有选中的文件才读取内容。隐藏文件不加入列表（当前文件除外）。关闭、打开其他文件或进入设置时废弃旧导航会话。
 - 验证：148 项前端测试、13 项 Rust 测试、TypeScript 与生产构建通过。Playwright CLI 配合 Tauri IPC 模拟验证 macOS/Windows 分支的自然排序、首尾边界、一次目录枚举、复制路径、搜索输入框保护、关闭后迟到结果无效；设置录入、重复按键拒绝、刷新后恢复与重置通过。
 - 本轮未替换已安装应用，未在 Windows 实机/WebView2 内验证；IPC 模拟不等同于原生端到端测试。未测量 CPU、内存或首屏耗时，不作性能数值结论。
+
+## CAD and model preview regression (2026-11-07)
+
+Run `node scripts/download-cad-model-fixtures.mjs` with an authenticated GitHub CLI,
+then `npm run build`, `cargo build --manifest-path src-tauri/Cargo.toml --locked`,
+and `node scripts/smoke-cad-model-real.mjs` on Windows with Edge installed.
+The browser test starts and closes its own production preview server on port 1435.
+Downloaded samples and provenance (source URL and Git blob SHA) stay in ignored test-results.
+
+Coverage includes the Three.js PR2 robot STL and Cerberus OBJ, an OCCT CAX-IF
+STEP assembly, a generated 200,000-triangle binary STL, and ACadSharp's real
+AC1015/AC1021/AC1032 drawings. It checks visible rendering, rotation, WebGL
+context release on switching, real native DWG-to-DXF conversion, layer controls,
+zoom and frontend cancellation dispatch. The DWG bridge is mocked in the browser;
+the native helper runs for real. A Rust test separately checks cancellation kills
+the parser child process. Mac/Linux native interaction remains unverified locally.
+
+DWG/DWT/DWS preview shows supported 2D model-space entities with pan, zoom and
+layers. It does not provide editing, paper-space plotting, external reference
+loading or complete proprietary/custom entity rendering. DWT/DWS use the DWG
+container reader but have not received independent real-template fixture testing.
+Input DWG is capped at 32 MiB, expanded sections at 128 MiB, converted DXF at
+16 MiB and parsing at 30 seconds. Close/switch terminates the child parser.
+Large meshes above 20,000 faces render without the optional edge overlay; small
+models retain it. Binary STL uses a directly allocated typed vertex array.

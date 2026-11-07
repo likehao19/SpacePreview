@@ -57,7 +57,7 @@ export const engines: { kind: PreviewKind; extensions: string[]; label: string }
   },
   { kind: 'pdf', extensions: ['pdf'], label: 'PDF 文档' },
   { kind: 'ofd', extensions: ['ofd'], label: 'OFD 版式文档' },
-  { kind: 'dxf', extensions: ['dxf'], label: 'CAD 图纸' },
+  { kind: 'dxf', extensions: ['dxf', 'dwg', 'dwt', 'dws'], label: 'CAD 图纸' },
   {
     kind: 'model',
     extensions: [
@@ -413,7 +413,7 @@ export function unsupportedFormatHint(name: string): string | undefined {
   const ext = extension(name);
   if (['raw', 'ai'].includes(ext))
     return '此图片格式需要专用解码器，目前仅显示文件信息。请使用默认应用查看。';
-  if (['dwg', 'dwt', 'dws', 'max', 'sldprt', 'sldasm'].includes(ext))
+  if (['max', 'sldprt', 'sldasm'].includes(ext))
     return '此工程格式尚未接入专用引擎。二维图纸可导出 DXF，三维模型可导出 STL/OBJ 后预览，或使用底部默认应用打开。';
 }
 export function formatSize(bytes: number) {

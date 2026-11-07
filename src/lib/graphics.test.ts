@@ -118,3 +118,26 @@ describe('graphics and code formats', () => {
     expect(() => readTiff(oversized)).toThrow('像素');
   });
 });
+it('reads a large binary STL and rejects non-finite binary coordinates', () => {
+  const count = 200000;
+  const bytes = new Uint8Array(84 + count * 50);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(80, count, true);
+  for (let i = 0; i < count; i++) {
+    const x = i % 500,
+      y = Math.floor(i / 500);
+    [x, y, 0, x + 1, y, 0, x, y + 1, 0].forEach((value, axis) =>
+      view.setFloat32(84 + i * 50 + 12 + axis * 4, value, true),
+    );
+  }
+  const positions = readModel(bytes, 'large.stl');
+  expect(positions.length).toBe(count * 9);
+  expect([...positions.slice(-9)]).toEqual([499, 399, 0, 500, 399, 0, 499, 400, 0]);
+  view.setFloat32(96, Infinity, true);
+  expect(() => readModel(bytes, 'invalid.stl')).toThrow('无效顶点');
+});
+
+it('routes native DWG drawings and templates to CAD preview', () => {
+  for (const suffix of ['dwg', 'dwt', 'dws', 'dxf'])
+    expect(detectKind(`drawing.${suffix}`)).toBe('dxf');
+});

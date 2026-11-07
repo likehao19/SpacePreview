@@ -1,3 +1,6 @@
+import { invoke } from '@tauri-apps/api/core';
+import { desktop } from '../lib/bridge';
+import { extension } from '../lib/files';
 import PreviewToolbar from './PreviewToolbar';
 import { useEffect, useRef, useState } from 'react';
 import { Minus, Plus, Maximize2 } from 'lucide-react';
@@ -13,13 +16,28 @@ export default function CadPreview({ file }: { file: PreviewFile }) {
   const [view, setView] = useState({ x: 0, y: 0, width: 1, height: 1 });
   const fitted = useRef(view);
   const drag = useRef<{ x: number; y: number; view: typeof view } | null>(null);
+  const dwg = extension(file.name) !== 'dxf';
   useEffect(() => {
     const controller = new AbortController();
-    if (file.size > 8 * 1024 * 1024) {
-      setError('DXF 预览上限为 8 MB。');
+    const job = crypto.randomUUID();
+    setError('');
+    setDrawing(undefined);
+    setHidden(new Set());
+    if (dwg && (!desktop || !file.path)) {
+      setError('DWG 完整图纸预览请在桌面版中打开本地文件。');
       return;
     }
-    void readBytes(file, 8 * 1024 * 1024)
+    if (file.size > (dwg ? 32 : 8) * 1024 * 1024) {
+      setError(dwg ? 'DWG 预览上限为 32 MiB。' : 'DXF 预览上限为 8 MiB。');
+      return;
+    }
+    void (
+      dwg
+        ? invoke<ArrayBuffer>('read_dwg', { path: file.path, job }).then(
+            (bytes) => new Uint8Array(bytes),
+          )
+        : readBytes(file, 8 * 1024 * 1024)
+    )
       .then((bytes) => parseInWorker({ kind: 'dxf', name: file.name, bytes }, controller.signal))
       .then((result) => {
         const drawing = result.drawing!;
@@ -53,8 +71,11 @@ export default function CadPreview({ file }: { file: PreviewFile }) {
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
       });
-    return () => controller.abort();
-  }, [file]);
+    return () => {
+      controller.abort();
+      if (dwg) void invoke('cancel_dwg', { job }).catch(() => {});
+    };
+  }, [file, dwg]);
   const zoom = (factor: number) =>
     setView((v) => {
       const next = v.width * factor;
@@ -76,7 +97,9 @@ export default function CadPreview({ file }: { file: PreviewFile }) {
   return (
     <div className="cad-preview">
       <PreviewToolbar className="content-toolbar">
-        <span>DXF · 二维模型空间 · {drawing.paths.length} 条轮廓</span>
+        <span>
+          {dwg ? 'DWG' : 'DXF'} · 二维模型空间 · {drawing.paths.length} 条轮廓
+        </span>
         <div className="toolbar-right">
           <button title="缩小图纸" onClick={() => zoom(1.25)}>
             <Minus size={15} />
@@ -114,7 +137,7 @@ export default function CadPreview({ file }: { file: PreviewFile }) {
         </aside>
         <svg
           className="cad-canvas"
-          aria-label="DXF 图纸预览"
+          aria-label={dwg ? 'DWG 图纸预览' : 'DXF 图纸预览'}
           viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}
           onWheel={(e) => zoom(e.deltaY < 0 ? 0.85 : 1.15)}
           onPointerDown={(e) => {
