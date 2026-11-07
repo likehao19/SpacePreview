@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useRef, useState } from 'react';
 import type { OfdBox, OfdDocument } from '../lib/ofd';
 
@@ -19,6 +20,7 @@ export default function OfdPage({
   const [box, setBox] = useState<OfdBox>(doc.pages[index].box);
   const [rendered, setRendered] = useState(false);
   const [error, setError] = useState('');
+  usePreviewLoading(nearby && !rendered && !error, `正在渲染 OFD 第 ${index + 1} 页`);
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setNearby(entry.isIntersecting), {
       root: container.current!.closest('.pdf-scroll'),

@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { usePreviewPreferences } from './PreviewPreferences';
 import PreviewToolbar from './PreviewToolbar';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -61,6 +62,10 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
     ),
   );
   const [extracting, setExtracting] = useState(false);
+  usePreviewLoading(
+    (!entries && !error) || extracting,
+    extracting ? '正在解压所选文件' : '正在读取压缩包目录',
+  );
   const [selected, setSelected] = usePreviewState('archive.selected', '');
   const restoreSelected = useRef(selected);
   const [childViews] = usePreviewState('archive.views', () => new Map<string, SessionCache>());

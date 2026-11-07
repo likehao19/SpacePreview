@@ -430,3 +430,21 @@ models retain it. Binary STL uses a directly allocated typed vertex array.
   server. Mocked native IPC verifies one-event opening with deferred metadata, no guide
   during loading, late startup result protection, settings dismissal and listener
   stability after toggling tabs. This is not a reproduction of a real Explorer key press.
+
+## Shared loading indicator (2026-11-07)
+
+All preview readers report their active load/render phase to a shared bottom-right
+indicator. It appears after 250 ms, clears on completion/error/unmount, and is hidden
+in settings. Actual byte-read percentages are shown when available (including staged
+text/Markdown/Office, Word, HTML, models and professional images); parsing/conversion,
+rendering and decoder phases use an indeterminate progress bar. Percentages describe
+that phase, not an invented estimate for the entire file. Publishing updates is split
+from indicator subscription so progress changes do not repaint the document tree.
+
+`node scripts/smoke-loading-status.mjs` controls model reading and worker completion,
+checks an intermediate byte percentage and bottom-right placement, then verifies the
+indeterminate parse stage, completion, switch cleanup and error cleanup. The example
+audit also asserts that the indicator disappears after ready content. Existing staged
+format and Word tests use the shared indicator. Their fixtures remain multi-MiB and
+cross the same staged-read boundaries; long text per paragraph/cell bounds DOM size
+so this progress test does not double as a browser out-of-memory stress test.

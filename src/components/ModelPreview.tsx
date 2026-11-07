@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import PreviewToolbar from './PreviewToolbar';
 import { useEffect, useRef, useState } from 'react';
 import type { PreviewFile } from '../lib/files';
@@ -10,15 +11,22 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
   const [error, setError] = useState('');
   const [triangles, setTriangles] = useState(0);
   const [points, setPoints] = useState(false);
+  const [progress, setProgress] = useState(0);
+  usePreviewLoading(
+    !triangles && !error,
+    progress < 100 ? '正在读取三维模型' : '正在解析三维模型',
+    progress > 0 && progress < 100 ? progress : undefined,
+  );
   useEffect(() => {
     const controller = new AbortController();
     setError('');
+    setProgress(0);
     setTriangles(0);
     setPoints(false);
     let dispose = () => {};
     const load = async () => {
       const [result, THREE, { OrbitControls }] = await Promise.all([
-        readFullBytes(file, controller.signal).then((bytes) =>
+        readFullBytes(file, controller.signal, setProgress).then((bytes) =>
           parseInWorker({ kind: 'model', bytes, name: file.name }, controller.signal),
         ),
         import('three'),

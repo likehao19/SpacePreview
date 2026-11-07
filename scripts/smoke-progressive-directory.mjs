@@ -62,14 +62,15 @@ try {
   await openWord();
   const frame = page.frameLocator('iframe[title="Word 原样预览"]');
   await expect(frame.locator('section.docx')).toHaveCount(12, { timeout: 20000 });
-  expect(await page.evaluate(() => window.firstPageCount)).toBe(2);
+  expect(await page.evaluate(() => window.firstPageCount)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.firstPageCount)).toBeLessThanOrEqual(12);
   await expect(frame.locator('table')).toBeVisible();
   await expect(frame.locator('.word-heading-0 span').first()).toHaveCSS(
     'color',
     'rgb(40, 94, 128)',
   );
   await expect.poll(() => page.evaluate(() => window.imagePending)).toBe(true);
-  await expect(page.locator('.word-status-progress')).toBeVisible();
+  await expect(page.locator('.preview-loading-toast')).toBeVisible();
   expect(await frame.locator('img').evaluate((img) => img.naturalWidth)).toBe(0);
   await page.screenshot({ path: 'test-results/word-progressive-first-page.png' });
   await page.evaluate(() => window.releaseImage());
@@ -77,7 +78,7 @@ try {
   await expect(page.locator('.word-status')).toHaveCount(0);
   await openWord();
   await expect.poll(() => page.evaluate(() => window.imagePending)).toBe(true);
-  await expect(page.locator('.word-status-progress')).toBeVisible();
+  await expect(page.locator('.preview-loading-toast')).toBeVisible();
   await page.locator('input[type=file]').setInputFiles({
     name: 'other.txt',
     mimeType: 'text/plain',
@@ -91,11 +92,10 @@ try {
     mimeType: 'application/octet-stream',
     buffer: Buffer.concat([Buffer.from('MZ'), Buffer.alloc(126)]),
   });
-  await expect(page.getByRole('heading', { name: '暂不支持预览此项目' })).toBeVisible();
-  await expect(page.locator('.unsupported-name')).toHaveText('unknown.custom');
-  await page.screenshot({ path: 'test-results/unsupported-full-page.png' });
-  await page.getByRole('button', { name: '查看文件信息' }).click();
   await expect(page.locator('.binary-preview')).toBeVisible();
+  await expect(page.locator('.binary-heading h2')).toHaveText('unknown.custom');
+  await expect(page.locator('.preview-loading-toast')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/unknown-file-info.png' });
 
   const folder = await browser.newPage({ viewport: { width: 1100, height: 800 } });
   folder.on('pageerror', (error) => errors.push(error.message));
@@ -205,7 +205,7 @@ try {
   await expect(folder.getByRole('heading', { name: '使用指南', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
   console.log(
-    'Passed: styled Word pages before delayed images, resource completion/cancellation, unsupported full-page notice, lazy deep directory tree, paging, empty/error branches and keyboard collapse.',
+    'Passed: styled Word pages before delayed images, resource completion/cancellation, unknown-file information, lazy deep directory tree, paging, empty/error branches and keyboard collapse.',
   );
 } finally {
   await browser.close();

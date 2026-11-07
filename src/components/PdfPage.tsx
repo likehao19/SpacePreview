@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentProxy, TextLayer } from 'pdfjs-dist';
 
@@ -19,6 +20,7 @@ export default function PdfPage({
   const [size, setSize] = useState(initialSize);
   const [rendered, setRendered] = useState(false);
   const [error, setError] = useState('');
+  usePreviewLoading(nearby && !rendered && !error, `正在渲染 PDF 第 ${number} 页`);
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setNearby(entry.isIntersecting), {
       root: container.current!.closest('.pdf-scroll'),

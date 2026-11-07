@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useState } from 'react';
 import PreviewToolbar from './PreviewToolbar';
 import type { PreviewFile } from '../lib/files';
@@ -13,6 +14,7 @@ export default function FontPreview({ file }: { file: PreviewFile }) {
   );
   const [size, setSize] = useState(32);
   const [error, setError] = useState('');
+  usePreviewLoading(!font && !error, '正在解析字体');
   const [page, setPage] = useState(0);
   const [count, setCount] = useState(1);
   useEffect(() => {

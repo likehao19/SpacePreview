@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import FoldableCode from './FoldableCode';
 import { usePreviewPreferences } from './PreviewPreferences';
 import ReadingWidth from './ReadingWidth';
@@ -163,6 +164,7 @@ export default function Preview({
             ? 'binary'
             : detected
           : registered;
+  usePreviewLoading(!kind && !file.directory && !tooLarge, '正在识别文件类型');
   if (file.directory) return <DirectoryPreview key={file.id} file={file} mode={mode} />;
   if (tooLarge && (mode === 'info' || showInfo || registered === 'binary'))
     return <BinaryPreview file={file} />;
@@ -227,6 +229,7 @@ export default function Preview({
 function MetafilePreview({ file }: { file: PreviewFile }) {
   const [image, setImage] = useState<PreviewFile>();
   const [error, setError] = useState('');
+  usePreviewLoading(!image && !error, '正在解析矢量图像');
   useEffect(() => {
     const controller = new AbortController();
     if (file.size > 16 * MiB) {
@@ -280,6 +283,7 @@ function MetafilePreview({ file }: { file: PreviewFile }) {
 function DesignPreview({ file }: { file: PreviewFile }) {
   const [image, setImage] = useState<PreviewFile>();
   const [error, setError] = useState('');
+  usePreviewLoading(!image && !error, '正在提取预览图');
   useEffect(() => {
     const controller = new AbortController();
     void import('../lib/design-thumbnail')
@@ -314,6 +318,7 @@ function ImagePreview({ file }: { file: PreviewFile }) {
   const [rotation, setRotation] = usePreviewState('image.rotation', 0);
   const [size, setSize] = useState('');
   const [error, setError] = useState(false);
+  usePreviewLoading(!size && !error, '正在加载图片');
   const [pan, setPan] = usePreviewState('image.pan', { x: 0, y: 0 });
   const fit = useRef(1);
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -397,11 +402,18 @@ function DecodedImagePreview({ file }: { file: PreviewFile }) {
   const [pages, setPages] = useState(0);
   const [image, setImage] = useState<PreviewFile>();
   const [error, setError] = useState('');
+  const [readProgress, setReadProgress] = useState(0);
+  usePreviewLoading(
+    !image && !error,
+    readProgress >= 100 ? '正在解码专业图像' : '正在读取专业图像',
+    readProgress > 0 && readProgress < 100 ? readProgress : undefined,
+  );
   useEffect(() => {
     const controller = new AbortController();
     setImage(undefined);
     setError('');
-    void readFullBytes(file, controller.signal)
+    setReadProgress(0);
+    void readFullBytes(file, controller.signal, setReadProgress)
       .then((bytes) =>
         parseInWorker({ kind: 'decoded-image', bytes, name: file.name, page }, controller.signal),
       )
@@ -456,6 +468,7 @@ function TiffPreview({ file }: { file: PreviewFile }) {
   const [pages, setPages] = useState(0);
   const [image, setImage] = useState<PreviewFile>();
   const [error, setError] = useState('');
+  usePreviewLoading(!image && !error, '正在解析 TIFF 图像');
   useEffect(() => {
     const controller = new AbortController();
     setImage(undefined);
@@ -534,6 +547,7 @@ function PresentationPreview({ file }: { file: PreviewFile }) {
   const [pdf, setPdf] = useState<PreviewFile | null>(null);
   const [text, setText] = useState(!available);
   const [note, setNote] = useState('');
+  usePreviewLoading(available && !text && !pdf && !note, '正在转换幻灯片页面');
   useEffect(() => {
     let active = true;
     setPdf(null);
@@ -607,6 +621,7 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
     ),
   );
   const [error, setError] = useState('');
+  usePreviewLoading(!doc && !error, '正在读取 PDF 文档');
   const scroll = useRef<HTMLDivElement>(null);
   const currentPage = useRef(1);
   const [pageSize, setPageSize] = useState({ width: 684, height: 910 });
@@ -944,6 +959,7 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
 function OfdPreview({ file }: { file: PreviewFile }) {
   const [doc, setDoc] = useState<OfdDocument | null>(null);
   const [error, setError] = useState('');
+  usePreviewLoading(!doc && !error, '正在读取 OFD 文档');
   const [retry, setRetry] = useState(0);
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -1132,6 +1148,12 @@ function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
     };
   }, [url]);
   const [error, setError] = useState(false);
+  const [ready, setReady] = useState(false);
+  usePreviewLoading(!ready && !error, audio ? '正在加载音频' : '正在加载视频');
+  useEffect(() => {
+    setReady(false);
+    setError(false);
+  }, [url]);
   return (
     <div className={`media-preview ${audio ? 'audio-preview' : ''}`}>
       {error ? (
@@ -1149,6 +1171,7 @@ function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
               autoPlay
               controls
               src={url}
+              onLoadedData={() => setReady(true)}
               onError={() => setError(true)}
             />
           )}
@@ -1161,6 +1184,7 @@ function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
             controls
             playsInline
             src={url}
+            onLoadedData={() => setReady(true)}
             onError={() => setError(true)}
           />
         )
@@ -1187,6 +1211,11 @@ function ParsedPreview({
   const [retry, setRetry] = useState(0);
   const [binary, setBinary] = useState(false);
   const [error, setError] = useState('');
+  usePreviewLoading(
+    (!result || backgroundLoading) && !error && !binary,
+    progress >= 100 ? '正在解析文件内容' : result ? '后续内容加载中' : '正在读取文件',
+    progress > 0 && progress < 100 ? progress : undefined,
+  );
   const [query, setQuery] = usePreviewState('text.query', '');
   const plainText =
     sourceLanguage(file.name) === 'plaintext' &&
@@ -1361,15 +1390,10 @@ function ParsedPreview({
     ) : (
       <Loading progress={progress} />
     );
-  const loadingStatus = (backgroundLoading || error) && (
-    <div className="progressive-status" role={error ? 'alert' : 'status'}>
-      {!error && <span className="spinner" />}
-      <span>
-        {error
-          ? `后续内容加载失败：${error}`
-          : `后续内容加载中… ${progress}% · 当前仅显示已加载内容`}
-      </span>
-      {error && <button onClick={() => setRetry((value) => value + 1)}>重新加载</button>}
+  const loadingStatus = error && (
+    <div className="progressive-status" role="alert">
+      <span>后续内容加载失败：{error}</span>
+      <button onClick={() => setRetry((value) => value + 1)}>重新加载</button>
     </div>
   );
   if (result.sheets || result.slides)
@@ -1582,6 +1606,7 @@ function BinaryPreview({
 }) {
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [error, setError] = useState('');
+  usePreviewLoading(!bytes && !error, '正在读取文件信息');
   const [shown, setShown] = useState(128);
   useEffect(() => {
     let active = true;

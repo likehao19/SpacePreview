@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useState } from 'react';
 import DOMPurify from 'dompurify';
 import type { PreviewFile } from '../lib/files';
@@ -14,6 +15,7 @@ export default function DiagramPreview({ file }: { file: PreviewFile }) {
   const [markdown, setMarkdown] = useState<string>();
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState('');
+  usePreviewLoading(!svg && markdown === undefined && !error, '正在绘制图表');
   useEffect(() => {
     const controller = new AbortController();
     void readFullBytes(file, controller.signal)

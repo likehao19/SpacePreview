@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useState } from 'react';
 import type { PreviewFile } from '../lib/files';
 import { formatSize, previewMime } from '../lib/files';
@@ -18,6 +19,7 @@ export default function MailPreview({
   const [mail, setMail] = useState<MailContent>();
   const [body, setBody] = useState<PreviewFile>();
   const [error, setError] = useState('');
+  usePreviewLoading(!mail && !error, '正在读取邮件');
   useEffect(() => {
     const controller = new AbortController();
     void readFullBytes(file, controller.signal)

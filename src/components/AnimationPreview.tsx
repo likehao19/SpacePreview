@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useRef, useState } from 'react';
 import type { AnimationItem } from 'lottie-web';
 import type { PreviewFile } from '../lib/files';
@@ -13,6 +14,7 @@ export default function AnimationPreview({ file }: { file: PreviewFile }) {
   const [playing, setPlaying] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
+  usePreviewLoading(!loaded && !error, '正在准备动画');
   useEffect(() => {
     const controller = new AbortController();
     setLoaded(false);

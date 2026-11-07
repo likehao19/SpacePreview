@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, FolderOpen, ArrowLeft, ExternalLink } from 'lucide-react';
 import type { PreviewFile } from '../lib/files';
@@ -20,6 +21,10 @@ export default function DirectoryPreview({
   const [error, setError] = useState('');
   const pending = useRef(new Set<string>());
   const alive = useRef(true);
+  usePreviewLoading(
+    !error && (!branches[file.id] || Object.values(branches).some((branch) => branch.loading)),
+    '正在读取文件夹',
+  );
   const selected = stack.at(-1);
   const load = async (folder: PreviewFile, offset = 0) => {
     if (pending.current.has(folder.id)) return;

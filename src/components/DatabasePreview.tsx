@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useEffect, useRef, useState } from 'react';
 import PreviewToolbar from './PreviewToolbar';
 import { TextAppearanceControls } from './TextAppearance';
@@ -13,6 +14,7 @@ export default function DatabasePreview({ file }: { file: PreviewFile }) {
   const [schema, setSchema] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  usePreviewLoading(loading && !error, '正在查询数据库');
   const worker = useRef<Worker | null>(null);
   const sequence = useRef(0);
   useEffect(() => {

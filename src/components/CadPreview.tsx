@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { invoke } from '@tauri-apps/api/core';
 import { desktop } from '../lib/bridge';
 import { extension } from '../lib/files';
@@ -17,6 +18,7 @@ export default function CadPreview({ file }: { file: PreviewFile }) {
   const fitted = useRef(view);
   const drag = useRef<{ x: number; y: number; view: typeof view } | null>(null);
   const dwg = extension(file.name) !== 'dxf';
+  usePreviewLoading(!drawing && !error, dwg ? '正在解析 DWG 图纸' : '正在解析 DXF 图纸');
   useEffect(() => {
     const controller = new AbortController();
     const job = crypto.randomUUID();

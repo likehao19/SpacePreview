@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { invoke } from '@tauri-apps/api/core';
 import { htmlResources } from '../lib/html-resources';
 import PreviewToolbar from './PreviewToolbar';
@@ -21,6 +22,11 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
   const [reading, setReading] = usePreviewState('html.reading', false);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
+  usePreviewLoading(
+    loading && !error,
+    progress >= 100 ? '正在准备网页' : '正在读取网页',
+    progress > 0 && progress < 100 ? progress : undefined,
+  );
   const scrollPosition = useRef(0);
   const frame = useRef<HTMLIFrameElement>(null);
   const applyAppearance = () => {
@@ -148,9 +154,9 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
       </button>
     </>
   );
-  const status = html && (loading || error) && (
-    <div className="progressive-status" role={error ? 'alert' : 'status'}>
-      {error ? `后续内容加载失败：${error}` : `后续网页内容加载中… ${progress}%`}
+  const status = html && error && (
+    <div className="progressive-status" role="alert">
+      {`后续内容加载失败：${error}`}
     </div>
   );
   if (reading)

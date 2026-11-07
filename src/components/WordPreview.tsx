@@ -1,3 +1,4 @@
+import { usePreviewLoading } from './PreviewLoading';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFileSearch, type SearchHit } from './FileSearch';
 import { findText, findRanges, scrollToRange } from '../lib/find';
@@ -44,6 +45,12 @@ export default function WordPreview({
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [status, setStatus] = useState('正在读取文档…');
   const [error, setError] = useState('');
+  const [pendingSections, setPendingSections] = useState(0);
+  usePreviewLoading(
+    (!!status || pendingSections > 0) && !error,
+    status.replace(/\s*\d+%/, '') || '正在加载文档图片和字体',
+    status.match(/(\d+)%/) ? Number(status.match(/(\d+)%/)![1]) : undefined,
+  );
   const [zoom, setZoom] = usePreviewState('word.zoom', 'fit');
   const adjusting = usePreviewGestures(
     useCallback(
@@ -155,6 +162,7 @@ export default function WordPreview({
       setRendered(false);
       setError('');
       setStatus('正在读取文档…');
+      setPendingSections(0);
       setOutline([]);
       setPageCount(0);
       setPage(1);
@@ -248,61 +256,66 @@ export default function WordPreview({
         };
         const styles = new Set<string>();
         const renderSection = async (index: number, host: HTMLElement) => {
-          controller.signal.throwIfAborted();
-          const body = {
-            ...doc.documentPart.body,
-            children: count > 1 ? children.slice(index * 200, (index + 1) * 200) : children,
-          };
-          // The outline is limited to mounted content; never rescan the full manuscript.
-          if (count === 1) {
-            headings.push(...buildWordOutline(body, doc.stylesPart?.styles ?? []));
-            setOutline(headings);
-          }
-          const renderDoc = Object.assign(Object.create(Object.getPrototypeOf(doc)), doc, {
-            _package: Object.assign(
-              Object.create(Object.getPrototypeOf(doc._package)),
-              doc._package,
-              { load: loadResource },
-            ),
-            documentPart: Object.assign(
-              Object.create(Object.getPrototypeOf(doc.documentPart)),
-              doc.documentPart,
-              { body },
-            ),
-          });
-          await engine.renderDocument(renderDoc, {
-            ...options,
-            renderHeaders: count === 1 || index === 0,
-            renderFooters: count === 1 || index === count - 1,
-            h: wordDom(
-              target,
-              (wrapper) => {
-                if (controller.signal.aborted) return;
-                if (count > 1) wrapper.classList.add('word-continuous');
-                host.append(wrapper);
-                setRendered(true);
-                setStatus('');
-                // Fit before measuring the placeholder, including sections loaded while scrolling.
-                const first = target.querySelector<HTMLElement>('section.docx');
-                const fitted = first?.style.zoom;
-                wrapper.querySelectorAll<HTMLElement>('section.docx').forEach((page) => {
-                  page.style.zoom =
-                    fitted ||
-                    String(
-                      Math.min(
-                        1,
-                        Math.max(
-                          0.2,
-                          (frame.current!.clientWidth - horizontalPadding) /
-                            parseFloat(getComputedStyle(page).width),
+          setPendingSections((value) => value + 1);
+          try {
+            controller.signal.throwIfAborted();
+            const body = {
+              ...doc.documentPart.body,
+              children: count > 1 ? children.slice(index * 200, (index + 1) * 200) : children,
+            };
+            // The outline is limited to mounted content; never rescan the full manuscript.
+            if (count === 1) {
+              headings.push(...buildWordOutline(body, doc.stylesPart?.styles ?? []));
+              setOutline(headings);
+            }
+            const renderDoc = Object.assign(Object.create(Object.getPrototypeOf(doc)), doc, {
+              _package: Object.assign(
+                Object.create(Object.getPrototypeOf(doc._package)),
+                doc._package,
+                { load: loadResource },
+              ),
+              documentPart: Object.assign(
+                Object.create(Object.getPrototypeOf(doc.documentPart)),
+                doc.documentPart,
+                { body },
+              ),
+            });
+            await engine.renderDocument(renderDoc, {
+              ...options,
+              renderHeaders: count === 1 || index === 0,
+              renderFooters: count === 1 || index === count - 1,
+              h: wordDom(
+                target,
+                (wrapper) => {
+                  if (controller.signal.aborted) return;
+                  if (count > 1) wrapper.classList.add('word-continuous');
+                  host.append(wrapper);
+                  setRendered(true);
+                  setStatus('');
+                  // Fit before measuring the placeholder, including sections loaded while scrolling.
+                  const first = target.querySelector<HTMLElement>('section.docx');
+                  const fitted = first?.style.zoom;
+                  wrapper.querySelectorAll<HTMLElement>('section.docx').forEach((page) => {
+                    page.style.zoom =
+                      fitted ||
+                      String(
+                        Math.min(
+                          1,
+                          Math.max(
+                            0.2,
+                            (frame.current!.clientWidth - horizontalPadding) /
+                              parseFloat(getComputedStyle(page).width),
+                          ),
                         ),
-                      ),
-                    );
-                });
-              },
-              styles,
-            ),
-          });
+                      );
+                  });
+                },
+                styles,
+              ),
+            });
+          } finally {
+            if (!controller.signal.aborted) setPendingSections((value) => Math.max(0, value - 1));
+          }
         };
         if (count > 1) {
           const continuous = target.createElement('style');
@@ -400,7 +413,7 @@ export default function WordPreview({
         label="缩放"
         value={`${Math.round(Number(zoom) * 100)}%`}
       />
-      {(status || error) && (
+      {((status && !rendered) || error) && (
         <div
           className={`word-status ${rendered ? 'word-status-progress' : ''}`}
           role={error ? 'alert' : 'status'}

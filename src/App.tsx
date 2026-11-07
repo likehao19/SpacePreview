@@ -1,3 +1,4 @@
+import { usePreviewLoading, PreviewLoadingIndicator } from './components/PreviewLoading';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   ArrowDownToLine,
@@ -175,6 +176,7 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [previewError, setPreviewError] = useState('');
   const [opening, setOpening] = useState(false);
+  usePreviewLoading(opening, '正在读取文件信息');
   const [suspended, setSuspended] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [menuTarget, setMenuTarget] = useState<HTMLDivElement | null>(null);
@@ -1674,7 +1676,7 @@ export default function App() {
           <p>支持一次拖入多个文件</p>
         </div>
       )}
-      {opening && file && <div className="opening-indicator">正在读取文件…</div>}
+      {!settingsOpen && !suspended && (file || opening) && <PreviewLoadingIndicator />}
       {toast && (
         <div className="toast" role="status">
           <Info size={16} />

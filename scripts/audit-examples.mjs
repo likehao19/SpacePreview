@@ -36,13 +36,11 @@ try {
       });
       continue;
     }
-    await page
-      .locator('input[type=file]')
-      .setInputFiles({
-        name: 'audit-reset.txt',
-        mimeType: 'text/plain',
-        buffer: Buffer.from('Audit reset'),
-      });
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'audit-reset.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('Audit reset'),
+    });
     await expect(page.locator('.code-scroll')).toContainText('Audit reset');
     await page.locator('input[type=file]').setInputFiles(file);
     await expect(page.locator('.file-title strong')).toHaveText(file.split(/[\\/]/).pop());
@@ -99,6 +97,14 @@ try {
         break;
       }
       await page.waitForTimeout(75);
+    }
+    if (status === 'ok') {
+      try {
+        await expect(page.locator('.preview-loading-toast')).toHaveCount(0, { timeout: 10000 });
+      } catch {
+        status = 'failed';
+        note = '内容出现后加载提示没有结束';
+      }
     }
     report.push({ name, kind, status, note });
     if (status !== 'ok') console.log(status, name, note.slice(0, 160));
