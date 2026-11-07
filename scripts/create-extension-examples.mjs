@@ -1,3 +1,4 @@
+import { officeVariant } from './example-office-variant.mjs';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { deflateSync } from 'node:zlib';
@@ -1488,7 +1489,34 @@ for (const { ext, kind } of selected) {
   structured += 1;
   const folder = categoryByKind[kind];
   if (!folder) throw new Error(`未分类的预览类型: ${kind}`);
-  await writeFile(join(destination, folder, `sample.${ext}`), bytes);
+  const containers = [
+    'apk',
+    'ipa',
+    'whl',
+    'nupkg',
+    'snupkg',
+    'vsix',
+    'xpi',
+    'aab',
+    'hap',
+    'wgt',
+    'wgtu',
+    'qlplugin',
+    'appx',
+    'appxbundle',
+    'msix',
+    'msixbundle',
+    'pyz',
+    'egg',
+  ];
+  const filename = containers.includes(ext)
+    ? `结构演示-${ext}.zip`
+    : ['msi', 'msp'].includes(ext)
+      ? `结构演示-${ext}.cfb`
+      : ext === 'deb'
+        ? '结构演示-deb.ar'
+        : `sample.${ext}`;
+  await writeFile(join(destination, folder, filename), officeVariant(bytes, ext));
 }
 
 const sizes = selected.map((item) => item);

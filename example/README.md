@@ -18,7 +18,7 @@
 
 已经替换有真实来源的样本；57 个暂缺真实替代文件的无效原件保存在 ../test-results/example-originals/removed，原始内容另有备份，未丢弃。待补格式见 [待补充格式](待补充格式.md)。缺少样本不等于软件一定不支持该格式。
 
-应用包、扩展包、安装包后缀中的一些文件仅是目录或复合流结构演示，用来查看内部文件；它们不是可安装、可执行或经过签名的软件包。不要用这些结构样本测试安装功能。Office 模板后缀也主要用于测试文档内容预览。
+原来的假 APK、IPA、MSI 等样本已经改为 `结构演示-*.zip`、`结构演示-*.cfb`、`结构演示-*.ar`，文件后缀与实际容器一致，不再冒充安装包。Office 模板和宏文档已修正内部主内容类型；宏格式样本没有可执行宏。
 
 ## 运行条件
 
@@ -41,3 +41,7 @@ node scripts/audit-examples.mjs
 ```
 
 审计输出：../test-results/example-audit.json；问题原件记录：../test-results/example-originals/repair-report.json。
+
+## 深入检查
+
+除首屏打开检查外，另运行 `node scripts/audit-example-contents.mjs` 检查压缩包内部文件的实际读取，以及音视频播放和跳转。报告位于 `test-results/example-deep-audit.json`。Office 主内容类型和容器后缀修复记录位于 `test-results/example-deep-repairs.json`。以上验证面向 SpacePreview 预览，不构成所有第三方默认应用的兼容性保证。
