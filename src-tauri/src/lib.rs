@@ -385,6 +385,16 @@ async fn navigate_file_selection(
 }
 
 #[tauri::command]
+fn open_project_page(page: String) -> Result<(), String> {
+    let url = match page.as_str() {
+        "repository" => "https://github.com/likehao19/SpacePreview",
+        "releases" => "https://github.com/likehao19/SpacePreview/releases",
+        _ => return Err("未知的项目页面".into()),
+    };
+    open::that(url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn open_default(path: String, state: State<PreviewState>) -> Result<(), String> {
     let path = authorized(&path, &state)?;
     let ext = path
@@ -576,6 +586,7 @@ pub fn run() {
             cancel_file_navigation,
             list_directory,
             open_default,
+            open_project_page,
             initial_paths,
             autostart_enabled,
             set_autostart,

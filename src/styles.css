@@ -3989,3 +3989,17 @@ button:disabled:hover {
   display: block;
   user-select: text;
 }
+
+.about-project {
+  margin-bottom: 24px;
+}
+.about-project-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.about-project-links a {
+  color: var(--accent);
+  font-size: 13px;
+  text-underline-offset: 3px;
+}

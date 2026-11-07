@@ -30,6 +30,7 @@ import FileSearch from './components/FileSearch';
 import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
+import ProjectLinks from './components/ProjectLinks';
 import PreviewPreferencesSettings, { usePreviewPreferences } from './components/PreviewPreferences';
 import PreviewSession from './components/PreviewSession';
 import { usePreviewTabs } from './lib/use-preview-tabs';
@@ -1610,6 +1611,7 @@ export default function App() {
                       <p>版本 {version} · 本地文件预览</p>
                     </div>
                   </div>
+                  <ProjectLinks />
                   <UpdateSettings updater={updater} />
                 </section>
               </div>
