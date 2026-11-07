@@ -418,3 +418,15 @@ Input DWG is capped at 32 MiB, expanded sections at 128 MiB, converted DXF at
 16 MiB and parsing at 30 seconds. Close/switch terminates the child parser.
 Large meshes above 20,000 faces render without the optional edge overlay; small
 models retain it. Binary STL uses a directly allocated typed vertex array.
+
+## First native preview handoff (2026-11-07)
+
+- Windows Space requests now share the startup queue used by Open With, so a request
+  arriving before frontend subscription is not discarded by a successful empty emit.
+- Native frontend listeners stay registered across platform and preview preference
+  changes; handlers use the current callbacks. Late startup results cannot replace
+  a newer file request. Metadata loading displays a loading view instead of the guide.
+- `node scripts/smoke-first-preview.mjs` runs against a temporary production preview
+  server. Mocked native IPC verifies one-event opening with deferred metadata, no guide
+  during loading, late startup result protection, settings dismissal and listener
+  stability after toggling tabs. This is not a reproduction of a real Explorer key press.

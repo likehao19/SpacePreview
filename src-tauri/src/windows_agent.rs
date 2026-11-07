@@ -9,7 +9,7 @@ use std::{
         OnceLock,
     },
 };
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use windows::{
     core::Interface,
     Win32::{
@@ -353,7 +353,8 @@ pub fn start(app: AppHandle) {
                 Ok(paths) if !paths.is_empty() && GetForegroundWindow() == foreground => {
                     crate::diagnostics::record(format!("selection count={}", paths.len()));
                     let source_view = READ_VIEW.get();
-                    if let Some(window) = app.get_webview_window("main") {
+                    if app.get_webview_window("main").is_some() {
+                        let preview_app = app.clone();
                         let _ = app.run_on_main_thread(move || {
                             // The COM result may have waited in the UI queue.
                             if GetForegroundWindow().0 as usize != handle {
@@ -363,18 +364,9 @@ pub fn start(app: AppHandle) {
                             cancel_navigation();
                             SOURCE_VIEW.store(source_view, Ordering::Relaxed);
                             SOURCE_WINDOW.store(handle, Ordering::Relaxed);
-                            let show = window.show();
-                            let restore = window.unminimize();
-                            let focus = window.set_focus();
-                            crate::diagnostics::record(format!(
-                                "UI show={show:?} restore={restore:?} focus={focus:?} visible={:?}",
-                                window.is_visible()
-                            ));
-                            let emit = window.emit(
-                                "preview-files",
-                                serde_json::json!({"paths": paths, "text": text, "fileManager": true}),
-                            );
-                            crate::diagnostics::record(format!("UI emit={emit:?}"));
+                            // Share startup queuing with Open With / single-instance requests.
+                            // A successful emit before the WebView subscribes otherwise loses the file.
+                            crate::show_preview_files(&preview_app, paths, text, true);
                         });
                     }
                 }

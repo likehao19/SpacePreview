@@ -360,6 +360,9 @@ export default function App() {
         if (desktop) void invoke('cancel_file_navigation').catch(() => {});
       }
       const version = ++request.current;
+      setSettingsOpen(false);
+      setMenuOpen(false);
+      setPreviewError('');
       setOpening(true);
       try {
         const incoming = await Promise.all(
@@ -396,6 +399,10 @@ export default function App() {
     },
     [loadFiles, macos, preferences.tabs, clearTabs],
   );
+
+  // Native listeners stay registered while platform/settings callbacks change.
+  const nativePreview = useRef({ loadPaths, tabs: preferences.tabs });
+  nativePreview.current = { loadPaths, tabs: preferences.tabs };
 
   const navigateFile = async (direction: -1 | 1) => {
     if (!desktop || !file?.path || archiveStack.length || opening) return;
@@ -549,17 +556,23 @@ export default function App() {
     if (!desktop) return;
     const unlisteners: (() => void)[] = [];
     let disposed = false;
+    const initialRequest = request.current;
     const register = (promise: Promise<() => void>) =>
       promise.then((stop) => (disposed ? stop() : unlisteners.push(stop)));
     const filesReady = register(
       listen<{ paths: string[]; text: boolean; fileManager?: boolean }>('preview-files', (e) => {
         trace('received');
-        void loadPaths(e.payload.paths, e.payload.text, false, e.payload.fileManager === true);
+        void nativePreview.current.loadPaths(
+          e.payload.paths,
+          e.payload.text,
+          false,
+          e.payload.fileManager === true,
+        );
       }),
     );
     void register(
       listen<string>('agent-selection-error', (event) => {
-        if (preferences.tabs && tabCount.current) {
+        if (nativePreview.current.tabs && tabCount.current) {
           setToast(event.payload);
           return;
         }
@@ -587,7 +600,8 @@ export default function App() {
     void register(
       getCurrentWindow().onDragDropEvent((event) => {
         setDragging(event.payload.type === 'over' || event.payload.type === 'enter');
-        if (event.payload.type === 'drop') void loadPaths(event.payload.paths);
+        if (event.payload.type === 'drop')
+          void nativePreview.current.loadPaths(event.payload.paths);
       }),
     );
     void filesReady
@@ -602,17 +616,23 @@ export default function App() {
       .then((initial) => {
         if (disposed || initialHandled.current) return;
         initialHandled.current = true;
-        if (initial.paths.length)
-          void loadPaths(initial.paths, initial.text, false, initial.fileManager === true);
+        if (initial.paths.length && request.current === initialRequest)
+          void nativePreview.current.loadPaths(
+            initial.paths,
+            initial.text,
+            false,
+            initial.fileManager === true,
+          );
       })
       .catch((error) => {
-        if (!disposed) setPreviewError(`初始文件读取失败：${String(error)}`);
+        if (!disposed && request.current === initialRequest)
+          setPreviewError(`初始文件读取失败：${String(error)}`);
       });
     return () => {
       disposed = true;
       unlisteners.forEach((stop) => stop());
     };
-  }, [loadPaths]);
+  }, []);
   useEffect(() => {
     if (!desktop || !settings.closeOnBlur || settingsOpen || !file) return;
     let disposed = false;
@@ -1123,7 +1143,14 @@ export default function App() {
         </div>
       )}
 
-      {previewError ? (
+      {opening && !file ? (
+        <main className="preview-container">
+          <div className="preview-message" role="status">
+            <span className="spinner" />
+            正在读取文件…
+          </div>
+        </main>
+      ) : previewError ? (
         <main className="preview-container">
           <UnsupportedPreview message={previewError} />
         </main>
@@ -1161,7 +1188,7 @@ export default function App() {
           ))}
         </main>
       ) : null}
-      {macos && !file && !previewError && !settingsOpen && (
+      {macos && !file && !previewError && !settingsOpen && !opening && (
         <main className="mac-welcome">
           <img src="/app-icon.png" alt="" width="52" height="52" />
           <h1>选择文件，即刻预览</h1>
@@ -1216,7 +1243,7 @@ export default function App() {
           </button>
         </main>
       )}
-      {(settingsOpen || (!macos && !file && !previewError)) && (
+      {(settingsOpen || (!macos && !file && !previewError && !opening)) && (
         <div className="settings-workspace">
           <section
             className={'settings-dialog' + (!file ? ' welcome' : '')}
@@ -1647,7 +1674,7 @@ export default function App() {
           <p>支持一次拖入多个文件</p>
         </div>
       )}
-      {opening && <div className="opening-indicator">正在读取文件…</div>}
+      {opening && file && <div className="opening-indicator">正在读取文件…</div>}
       {toast && (
         <div className="toast" role="status">
           <Info size={16} />
