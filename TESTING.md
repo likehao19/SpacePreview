@@ -448,3 +448,15 @@ audit also asserts that the indicator disappears after ready content. Existing s
 format and Word tests use the shared indicator. Their fixtures remain multi-MiB and
 cross the same staged-read boundaries; long text per paragraph/cell bounds DOM size
 so this progress test does not double as a browser out-of-memory stress test.
+
+## Native-path font specimens (2026-11-07)
+
+`node scripts/smoke-font-preview.mjs` opens the real Liberation Sans fixture with a
+Windows path as its native file ID. It compares rendered Latin text widths to an
+independently registered reference FontFace; the previous path-derived family name
+falls back to a different font, while the safe generated family matches the reference.
+It also checks version metadata, seven point sizes, editable sample text, lazy glyph
+grid mounting and font-face removal on switching. Missing CJK coverage is read from
+the actual cmap (the engine's hasChar method can return true for missing entries),
+and the UI identifies system fallback characters. Cmap enumeration avoids decoding
+all glyph outlines merely to build the character list.

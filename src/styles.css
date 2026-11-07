@@ -3118,16 +3118,75 @@ button:disabled:hover {
   color: var(--muted);
   font-weight: 500;
 }
-.font-paper textarea {
-  width: 100%;
-  min-height: 230px;
-  resize: vertical;
-  border: 0;
-  outline: 0;
-  line-height: 1.8;
-  background: transparent;
+.font-metadata {
+  margin: -12px 0 18px;
+  font-size: 13px;
+}
+.font-metadata p {
+  margin: 5px 0;
+}
+.font-fallback-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+.font-character-lines {
+  border-block: 1px solid var(--line);
+  padding: 10px 0;
+  overflow-x: auto;
+  font-size: 20px;
+}
+.font-character-lines p {
+  margin: 0;
+  white-space: nowrap;
+}
+.font-sample-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.font-sample-label input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
   color: var(--text);
 }
+.font-size-specimens {
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+.font-size-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin: 10px 0;
+  white-space: nowrap;
+}
+.font-size-label {
+  flex: 0 0 24px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+.font-size-text {
+  line-height: 1.3;
+}
+.font-glyph-details {
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+.font-glyph-details summary {
+  cursor: pointer;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
 .font-glyphs {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));

@@ -148,6 +148,7 @@ try {
   pass('SQLite');
   await open('sample.ttf');
   await expect(page.getByLabel('字体预览文本')).toBeVisible();
+  await page.locator('.font-glyph-details summary').click();
   await expect(page.locator('.font-glyphs span').first()).toBeVisible();
   pass('TTF');
   await open('sample.ttc', fixtures['sample.ttc']);
