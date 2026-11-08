@@ -3156,6 +3156,10 @@ button:disabled:hover {
   background: var(--panel);
   color: var(--text);
 }
+.font-sample-label input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 .font-size-specimens {
   overflow-x: auto;
   padding-bottom: 12px;
