@@ -115,6 +115,10 @@ unsafe fn class_name(hwnd: HWND) -> String {
 }
 
 unsafe fn file_list_has_focus(foreground: HWND) -> bool {
+    if crate::everything::is_window_class(&class_name(foreground)) {
+        return focused_window(foreground)
+            .is_some_and(|focus| crate::everything::has_list_focus(foreground, focus));
+    }
     if !matches!(
         class_name(foreground).as_str(),
         "CabinetWClass" | "ExploreWClass" | "Progman" | "WorkerW"
@@ -298,6 +302,12 @@ unsafe fn paths_from_browser(
 }
 
 unsafe fn selected_paths(foreground: HWND) -> windows::core::Result<Vec<String>> {
+    if crate::everything::is_window_class(&class_name(foreground)) {
+        READ_VIEW.set(0);
+        let (paths, list) = crate::everything::selected_paths(foreground)?;
+        READ_VIEW.set(list.0 as usize);
+        return Ok(paths);
+    }
     let shell: IShellWindows = CoCreateInstance(&ShellWindows, None, CLSCTX_ALL)?;
     if matches!(class_name(foreground).as_str(), "Progman" | "WorkerW") {
         let empty = VARIANT::default();
@@ -593,6 +603,14 @@ pub async fn navigate(
                 && GetForegroundWindow().0 as usize == preview
         };
         let run = || -> windows::core::Result<Option<String>> {
+            if crate::everything::is_window_class(&class_name(HWND(source as *mut _))) {
+                return crate::everything::navigate(
+                    HWND(source_view as *mut _),
+                    &path,
+                    direction,
+                    valid,
+                );
+            }
             let shell: IShellWindows = CoCreateInstance(&ShellWindows, None, CLSCTX_ALL)?;
             let foreground = HWND(source as *mut _);
             let desktop = matches!(class_name(foreground).as_str(), "Progman" | "WorkerW");

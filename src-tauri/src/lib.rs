@@ -32,6 +32,8 @@ fn trace_preview(stage: String) {
     }
 }
 
+#[cfg(windows)]
+mod everything;
 #[cfg(target_os = "macos")]
 mod macos_agent;
 #[cfg(any(target_os = "macos", test))]

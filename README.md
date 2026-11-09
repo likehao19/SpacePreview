@@ -30,7 +30,7 @@
 
 ## Files at a glance, without opening every app
 
-SpacePreview is a local file previewer. Select a file in Windows Explorer, on the desktop, or in macOS Finder, then press Space to preview it. Press Space again to return. Documents, images, code, spreadsheets, and archives share one window, so a quick look does not require launching a full editor.
+SpacePreview is a local file previewer. Select a file in Windows Explorer, on the desktop, in Everything 1.4/1.5, or in macOS Finder, then press Space to preview it. Press Space again to return. Documents, images, code, spreadsheets, and archives share one window, so a quick look does not require launching a full editor.
 
 - **Local first** — previews are read-only, do not modify the original file, and do not upload its contents.
 - **Quick to inspect** — PDF pages render near the viewport, ZIP entries load on demand, and old tasks are cancelled when switching or closing.

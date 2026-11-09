@@ -1409,7 +1409,9 @@ export default function App() {
                           {!settings.spaceEnabled
                             ? '快捷键预览已关闭，可选择文件或拖入预览'
                             : agent.running
-                              ? `快捷键已启用 · 支持 ${fileManager} 与桌面`
+                              ? macos
+                                ? `快捷键已启用 · 支持 ${fileManager} 与桌面`
+                                : '快捷键已启用 · 支持资源管理器、桌面与 Everything 1.4/1.5'
                               : macos
                                 ? !agent.accessibility
                                   ? '请授权辅助功能，才能接收 Finder 的预览快捷键'
