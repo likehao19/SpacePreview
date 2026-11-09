@@ -269,17 +269,17 @@ try {
         'https://github.com/likehao19/SpacePreview/releases/latest',
       );
     } else {
-      await expect(fallback.locator('[data-release-state]')).toContainText('备用版本 v0.10.21', {
+      await expect(fallback.locator('[data-release-state]')).toContainText('备用版本 v0.10.22', {
         timeout: 11000,
       });
       await expect(fallback.locator('[data-platform="windows"]')).toHaveAttribute(
         'href',
-        'https://github.com/likehao19/SpacePreview/releases/download/v0.10.21/SpacePreview-0.10.21-windows-x64-setup.exe',
+        'https://github.com/likehao19/SpacePreview/releases/download/v0.10.22/SpacePreview-0.10.22-windows-x64-setup.exe',
       );
-      await expect(fallback.locator('[data-release-version]')).toHaveText('v0.10.21');
+      await expect(fallback.locator('[data-release-version]')).toHaveText('v0.10.22');
       await fallback.getByRole('button', { name: 'EN', exact: true }).click();
       await expect(fallback.locator('[data-release-state]')).toContainText(
-        'Backup version v0.10.21',
+        'Backup version v0.10.22',
       );
     }
     await fallback.close();
