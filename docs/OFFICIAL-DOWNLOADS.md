@@ -21,6 +21,8 @@ Actions Secrets：`SPACEPREVIEW_DEPLOY_HOST`、`SPACEPREVIEW_DEPLOY_KEY`、`SPAC
 
 SSH 专用密钥可独立轮换：生成新密钥，将带相同限制的公钥安装到该账号后验证，更新 Actions Secret，撤销旧公钥，并清理所有临时私钥副本。不得打印、提交私钥或在参数中传递私钥内容。
 
+该账号整个 home（包括 shell 启动文件）由 root 所有，账号不能通过修改初始化脚本绕过强制命令。服务器只保存公钥，不保存 Actions 部署私钥或 Tauri 更新签名私钥。
+
 ## 服务器与互斥
 
 - 主机 SSH 别名：`likh`；沿用已有宝塔 Nginx、HTTPS、站点登记和证书续期。
@@ -54,9 +56,21 @@ curl --fail https://spacepreview.likh.cn/downloads/latest.json
 
 回退站点配置：先停止本项目 timer/service；保留下载 `current` 及程序数据，备份现场。还原 `website.tar.gz` 到本站根目录、还原本站 vhost 与扩展目录，执行 `/www/server/nginx/sbin/nginx -t` 后才平滑 reload。只恢复本站文件，不覆盖其他业务。新客户端仍依赖官方更新地址，因此一般只回退页面/配置问题，不撤除有效下载路由。
 
+只回退官网页面的示例（在服务器 root 会话执行，不会降低客户端发布版本）：
+
+```sh
+systemctl stop spacepreview-release-sync.timer spacepreview-release-sync.service
+tar -xzf /srv/spacepreview-backups/20261110T045317Z/website.tar.gz -C /www/wwwroot/spacepreview.likh.cn
+# 保留有效 downloads 扩展、current 和数据；如需恢复 vhost，先备份现场并仅恢复本站配置。
+/www/server/nginx/sbin/nginx -t && /www/server/nginx/sbin/nginx -s reload
+systemctl enable --now spacepreview-release-sync.timer
+```
+
 包同步故障无需回退版本，修复网络/磁盘/权限后启动 service 即可；它会回收临时文件并重试最新正式版。若文件系统已损坏，应停止本项目同步，将损坏目录隔离留作调查，用原公钥与同一验证程序从 GitHub 重建最新正式版，验证后恢复下载路由。禁止绕过验签、关闭 TLS/主机校验或自动降级。
 
 初始安装运行服务器补同步，再发布 v0.10.23 验证 CI 主动上传；以 journal 的定时触发、完整包公网 SHA-256 和真实网页访问作为验收证据。Windows/macOS/Linux 全平台真实安装升级仍需对应机器；构建、签名校验、下载完整性与更新器界面测试不能替代全部实机安装。
+
+本次实测记录见 [2026-11-10 部署验收](official-downloads-verification-2026-11-10.md)。公开下载验证可重跑 `python3 scripts/verify-official-downloads.py`；它会从公网下载全部平台包，检查服务器 SHA-256、GitHub 原包摘要和四份更新签名，完成后清理临时下载。该脚本使用系统 curl 的可信 TLS，不关闭证书校验。
 
 ## 旧客户端迁移
 

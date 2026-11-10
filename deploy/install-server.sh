@@ -19,7 +19,7 @@ if ! id spacepreview-deploy >/dev/null 2>&1; then
   useradd --system --create-home --home-dir /var/lib/spacepreview-deploy --shell /bin/bash spacepreview-deploy
 fi
 # The upload key can neither edit its own authorized_keys nor modify the sync code.
-chown root:root /var/lib/spacepreview-deploy
+chown -R root:root /var/lib/spacepreview-deploy
 chmod 755 /var/lib/spacepreview-deploy
 install -d -m 755 /var/lib/spacepreview-deploy/.ssh
 install -d -m 755 /opt/spacepreview-release-mirror

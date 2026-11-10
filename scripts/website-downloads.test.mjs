@@ -48,6 +48,7 @@ describe('official downloads', () => {
       const page = await website(release, { networkError: mode === 'offline' });
       expect(page.links.every((link) => link.href.startsWith(`${base}/latest/`))).toBe(true);
       expect(page.state['[data-release-state]'].textContent).toBe('fallback');
+      expect(page.state['[data-release-version]'].textContent).toBe('officialVersion');
     }
   });
   it('recommends supported OS/architecture without guessing an unknown Mac CPU', async () => {

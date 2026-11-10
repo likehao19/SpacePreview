@@ -12,6 +12,7 @@ let releaseStatus = 'checking';
 let releaseVersion = '';
 
 function renderReleaseState() {
+  document.querySelector('[data-release-version]').textContent = releaseVersion || translateRelease('officialVersion');
   document.querySelector('[data-release-state]').textContent = translateRelease(releaseStatus, {
     version: releaseVersion,
   });
@@ -53,7 +54,6 @@ async function loadLatestRelease() {
         throw new Error('Incomplete official release');
       return { link, asset };
     });
-    document.querySelector('[data-release-version]').textContent = release.tag_name;
     releaseVersion = release.tag_name;
     for (const { link, asset } of resolved) {
       link.href = asset.browser_download_url;
