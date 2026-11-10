@@ -30,7 +30,7 @@ export function createUpdateManifest(directory, version, repository, notes, date
       throw new Error(`Invalid update signature: ${name}.sig`);
     platforms[target] = {
       signature,
-      url: `https://github.com/${repository}/releases/download/v${version}/${name}`,
+      url: `https://spacepreview.likh.cn/downloads/v${version}/${name}`,
     };
   }
   return { version, notes, pub_date: date.toISOString(), platforms };

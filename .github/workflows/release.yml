@@ -50,6 +50,9 @@ jobs:
           cache: npm
       - name: Check release version
         run: node scripts/check-release-version.mjs
+      - name: Test official release synchronization
+        if: runner.os == 'Linux'
+        run: python3 -m unittest discover -s deploy -p 'test_*.py' -q
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -141,3 +144,11 @@ jobs:
           fi
           gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest --notes-file RELEASE-NOTES.md
+      - name: Upload complete release to official server
+        timeout-minutes: 35
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPACEPREVIEW_DEPLOY_HOST: ${{ secrets.SPACEPREVIEW_DEPLOY_HOST }}
+          SPACEPREVIEW_DEPLOY_KEY: ${{ secrets.SPACEPREVIEW_DEPLOY_KEY }}
+          SPACEPREVIEW_DEPLOY_KNOWN_HOSTS: ${{ secrets.SPACEPREVIEW_DEPLOY_KNOWN_HOSTS }}
+        run: bash scripts/upload-release.sh

@@ -43,7 +43,7 @@ describe('signed release manifest', () => {
     for (const [platform, target] of Object.entries(updateTargets)) {
       expect(manifest.platforms[target]).toEqual({
         signature,
-        url: `https://github.com/likehao19/SpacePreview/releases/download/v0.11.0/${updateAssetName('0.11.0', platform)}`,
+        url: `https://spacepreview.likh.cn/downloads/v0.11.0/${updateAssetName('0.11.0', platform)}`,
       });
     }
     expect(manifest.platforms['linux-x86_64'].url).toMatch(/linux-x64\.AppImage$/);

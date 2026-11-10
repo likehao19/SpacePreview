@@ -7,8 +7,8 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const websiteUrl = new URL('../website/index.html', import.meta.url).href;
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const errors = [];
-const releaseApi = 'https://api.github.com/repos/likehao19/SpacePreview/releases/latest';
-const releaseBase = 'https://github.com/likehao19/SpacePreview/releases/download/v99.0.0/';
+const releaseApi = 'https://spacepreview.likh.cn/downloads/release.json';
+const releaseBase = 'https://spacepreview.likh.cn/downloads/v99.0.0/';
 const packageNames = [
   'SpacePreview-99.0.0-windows-x64-setup.exe',
   'SpacePreview-99.0.0-macos-x64.dmg',
@@ -250,38 +250,11 @@ try {
       });
     });
     await fallback.goto(websiteUrl);
-    if (scenario === 'missing-package') {
-      await expect(fallback.locator('[data-release-state]')).toContainText('部分安装包');
-      await expect(fallback.locator('[data-platform="macos-arm64"]')).toHaveAttribute(
-        'href',
-        'https://github.com/likehao19/SpacePreview/releases/latest',
-      );
-      await expect(fallback.locator('[data-platform="macos-arm64"]')).toContainText('查看发布页');
-      await expect(fallback.locator('[data-platform="macos-x64"]')).toHaveAttribute(
-        'href',
-        releaseBase + packageNames[1],
-      );
-      await fallback.getByRole('button', { name: 'EN', exact: true }).click();
-      await expect(fallback.locator('[data-release-state]')).toContainText('Some installers');
-      await expect(fallback.locator('[data-platform="macos-arm64"]')).toContainText('View release');
-      await expect(fallback.locator('[data-platform="macos-arm64"]')).toHaveAttribute(
-        'href',
-        'https://github.com/likehao19/SpacePreview/releases/latest',
-      );
-    } else {
-      await expect(fallback.locator('[data-release-state]')).toContainText('备用版本 v0.10.22', {
-        timeout: 11000,
-      });
-      await expect(fallback.locator('[data-platform="windows"]')).toHaveAttribute(
-        'href',
-        'https://github.com/likehao19/SpacePreview/releases/download/v0.10.22/SpacePreview-0.10.22-windows-x64-setup.exe',
-      );
-      await expect(fallback.locator('[data-release-version]')).toHaveText('v0.10.22');
-      await fallback.getByRole('button', { name: 'EN', exact: true }).click();
-      await expect(fallback.locator('[data-release-state]')).toContainText(
-        'Backup version v0.10.22',
-      );
-    }
+    await expect(fallback.locator('[data-release-state]')).toContainText('仍可从官方服务器下载', { timeout: 11000 });
+    for (const link of await fallback.locator('[data-platform]').evaluateAll((links) => links.map((link) => link.href)))
+      expect(link).toMatch(/^https:\/\/spacepreview\.likh\.cn\/downloads\/latest\//);
+    await fallback.getByRole('button', { name: 'EN', exact: true }).click();
+    await expect(fallback.locator('[data-release-state]')).toContainText('Official server downloads remain available.');
     await fallback.close();
   }
   for (const name of [

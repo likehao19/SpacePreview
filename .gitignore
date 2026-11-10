@@ -16,3 +16,4 @@ src-tauri/gen/
 *.p12
 *.pfx
 /.updater-keys/
+__pycache__/

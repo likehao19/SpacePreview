@@ -1,0 +1,23 @@
+[Unit]
+Description=Synchronize complete SpacePreview release from GitHub
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=spacepreview-deploy
+Group=spacepreview-deploy
+ExecStart=/usr/bin/python3 /opt/spacepreview-release-mirror/release_mirror.py sync
+TimeoutStartSec=30min
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/spacepreview-downloads
+MemoryMax=256M
+CPUQuota=25%
+TasksMax=16
+LimitNOFILE=128
+

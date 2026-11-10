@@ -10,7 +10,7 @@ macOS 替换应用后重启。重启失败时保留「重启瞬览」入口，�
 
 ## 发布要求
 
-- 更新地址：`https://github.com/likehao19/SpacePreview/releases/latest/download/latest.json`。
+- 更新地址：`https://spacepreview.likh.cn/downloads/latest.json`。
 - 公钥固定在 `src-tauri/tauri.conf.json`，私钥不进入 Git。
 - GitHub Actions 必须配置 `TAURI_SIGNING_PRIVATE_KEY` Secret；加密私钥还需要
   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。密钥内容通过标准输入配置，避免出现在命令历史或日志。
@@ -38,6 +38,8 @@ Linux AppImage 支持应用内更新；`.deb` 用户通过下载安装新版本�
 发布工作流一起上传安装包、更新包、签名、清单与 SHA-256 校验文件。
 仅发布稳定版，版本比较由官方更新器完成，不自动降级。
 Tauri 更新签名与 Apple Developer ID 签名、公证是不同机制；现有 Mac 分发签名要求仍适用。
+
+官方服务器部署、受限账号、定时补同步、缓存和恢复方式见 [官方分发运维](OFFICIAL-DOWNLOADS.md)。v0.10.22 及以前的客户端需要先通过 GitHub 或手动安装 v0.10.23，之后更新入口迁到官方服务器。
 
 ## 本地验证
 

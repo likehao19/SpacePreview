@@ -3635,7 +3635,7 @@ dependencies = [
 
 [[package]]
 name = "space-preview"
-version = "0.10.22"
+version = "0.10.23"
 dependencies = [
  "acadrust",
  "auto-launch",

@@ -1,0 +1,12 @@
+[Unit]
+Description=Check SpacePreview stable releases every 30 minutes
+
+[Timer]
+OnCalendar=*:0/30
+Persistent=true
+AccuracySec=1s
+Unit=spacepreview-release-sync.service
+
+[Install]
+WantedBy=timers.target
+
