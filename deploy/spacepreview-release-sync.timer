@@ -9,4 +9,3 @@ Unit=spacepreview-release-sync.service
 
 [Install]
 WantedBy=timers.target
-

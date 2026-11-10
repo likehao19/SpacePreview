@@ -20,4 +20,3 @@ MemoryMax=256M
 CPUQuota=25%
 TasksMax=16
 LimitNOFILE=128
-

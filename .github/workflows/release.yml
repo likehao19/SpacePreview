@@ -80,7 +80,7 @@ jobs:
           fi
       - name: Prepare preview engine resources
         run: npm run prebuild
-      - run: npm test
+      - run: npm test -- --maxWorkers=2
       - run: cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
       - name: Build installer
         env:
