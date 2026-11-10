@@ -239,6 +239,60 @@ class ReleaseTests(unittest.TestCase):
         for tag in ['v1.0.0-beta.1', 'v01.0.0', '../v1.0.0']:
             with self.assertRaises(ValueError): mirror.version(tag)
 
+    def test_trusted_comment_is_cryptographically_verified(self):
+        directory, release = self.fixture()
+        name = 'SpacePreview-1.0.0-linux-x64.AppImage'
+        signature = (directory / (name + '.sig')).read_text().strip()
+        decoded = base64.b64decode(signature).replace(b'trusted comment: test\n', b'trusted comment: changed\n')
+        signature = base64.b64encode(decoded).decode()
+        (directory / (name + '.sig')).write_text(signature + '\n')
+        path = directory / 'latest.json'
+        manifest = json.loads(path.read_text())
+        manifest['platforms']['linux-x86_64']['signature'] = signature
+        mirror.write_json(path, manifest)
+        self.checks(directory, release)
+        with self.assertRaisesRegex(ValueError, 'signature verification'): self.upload(directory, release)
+
+    def test_downloads_use_bounded_reads_and_reject_truncation_or_excess(self):
+        class Response(io.BytesIO):
+            url = 'https://release-assets.githubusercontent.com/test'
+            reads = []
+            def read(self, size=-1):
+                self.reads.append(size)
+                return super().read(size)
+        payload = b'x' * (256 * 1024)
+        output = Path(self.temporary.name) / 'streamed'
+        with patch.object(mirror.urllib.request, 'urlopen', return_value=Response(payload)):
+            mirror.fetch('https://github.com/test', output, len(payload), len(payload))
+        self.assertEqual(output.stat().st_size, len(payload))
+        self.assertEqual(set(Response.reads), {64 * 1024})
+        for expected, limit in [(len(payload) + 1, len(payload) + 1), (len(payload), 100)]:
+            output.unlink()
+            with patch.object(mirror.urllib.request, 'urlopen', return_value=Response(payload)):
+                with self.assertRaises(ValueError): mirror.fetch('https://github.com/test', output, limit, expected)
+
+    def test_real_process_exit_before_and_after_pointer_swap_recovers(self):
+        self.upload(*self.fixture())
+        for after, tag in [(False, 'v1.1.0'), (True, 'v1.2.0')]:
+            fixture = self.fixture(tag)
+            def crash():
+                original = mirror.os.replace
+                def interrupted(source, destination):
+                    if after: original(source, destination)
+                    mirror.os._exit(137)
+                with patch.object(mirror.os, 'replace', side_effect=interrupted): self.upload(*fixture)
+            process = multiprocessing.get_context('fork').Process(target=crash)
+            process.start()
+            process.join(10)
+            if process.is_alive():
+                process.kill(); process.join()
+                self.fail('Crash simulation timed out')
+            self.assertEqual(process.exitcode, 137)
+            self.assertEqual(self.store.current_tag(), tag if after else 'v1.0.0')
+            with self.store.locked(): pass
+            self.assertEqual([p.name for p in self.store.releases.iterdir()], [tag if after else 'v1.0.0'])
+            self.assertEqual(list(self.store.staging.iterdir()), [])
+
 
 if __name__ == '__main__':
     unittest.main()
