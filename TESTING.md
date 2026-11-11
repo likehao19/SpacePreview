@@ -468,3 +468,11 @@ grid mounting and font-face removal on switching. Missing CJK coverage is read f
 the actual cmap (the engine's hasChar method can return true for missing entries),
 and the UI identifies system fallback characters. Cmap enumeration avoids decoding
 all glyph outlines merely to build the character list.
+
+## 托盘 / 菜单栏图标显示
+
+「偏好设置 → 通用 → 窗口与启动」默认开启图标显示。Windows 名称为「显示托盘图标」，macOS 为「显示菜单栏图标」。关闭只隐藏图标，程序和快捷键继续运行；重新打开应用可返回设置恢复。选择由原生配置保存，重启时读取；首次启动或配置损坏默认显示。
+
+回归步骤：关闭图标，退出并重新打开应用，确认开关仍关闭；恢复显示并重复切换，确认原菜单仍可用。保存失败时应保留原状态，读失败时开关禁用并提示重新打开设置，等待写入时不能重复触发。
+
+本次通过 174 项前端测试、14 项 Rust 测试（另 1 项既有测试跳过）和 Mac 测试应用构建。Mac 原生应用验证了隐藏、退出重启后保留关闭状态及重新恢复显示；Windows / Mac 桥接界面验证了默认状态、重载、读写失败、等待期间禁用和恢复。Windows 原生托盘行为尚未实机验证。测试使用独立标识 com.spacepreview.tray-qa，未修改正式安装版或系统隐私权限。

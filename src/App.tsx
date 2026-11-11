@@ -32,6 +32,7 @@ import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
 import ProjectLinks from './components/ProjectLinks';
+import TraySettings from './components/TraySettings';
 import PreviewPreferencesSettings, { usePreviewPreferences } from './components/PreviewPreferences';
 import PreviewSession from './components/PreviewSession';
 import { usePreviewTabs } from './lib/use-preview-tabs';
@@ -1331,7 +1332,7 @@ export default function App() {
                     <p>
                       {desktop
                         ? agent?.supported
-                          ? `${settings.spaceEnabled && agent.running ? `在 ${fileManager} 或桌面选中文件，按 ${previewKey} 即可预览。` : settings.spaceEnabled ? '系统快捷键尚未就绪，可先选择或拖入文件预览。' : '文件管理器快捷键预览已关闭，可选择或拖入文件预览。'}${macos ? '首次使用需要系统授权。关闭窗口后仍在菜单栏运行。' : '关闭窗口后仍在托盘运行。'}`
+                          ? `${settings.spaceEnabled && agent.running ? `在 ${fileManager} 或桌面选中文件，按 ${previewKey} 即可预览。` : settings.spaceEnabled ? '系统快捷键尚未就绪，可先选择或拖入文件预览。' : '文件管理器快捷键预览已关闭，可选择或拖入文件预览。'}${macos ? '首次使用需要系统授权。' : ''}关闭窗口后仍在后台运行。`
                           : '当前系统支持文件选择与拖入，暂未接入文件管理器空格预览。'
                         : '浏览器中仅展示使用说明与设置界面。文件管理器快捷键预览需要桌面版。'}
                     </p>
@@ -1357,6 +1358,7 @@ export default function App() {
                   </div>
                   <h3>窗口与启动</h3>
                   <div className="settings-toggles">
+                    <TraySettings macos={macos} onError={setToast} />
                     <div className="setting-row">
                       <Eye className="setting-icon" size={22} strokeWidth={1.5} />
                       <div>
@@ -1385,7 +1387,7 @@ export default function App() {
                               ? '正在同步系统启动设置…'
                               : autostart === null
                                 ? '无法读取状态，请重新打开设置'
-                                : `登录后在${macos ? '菜单栏' : '托盘'}运行，不弹出预览窗口`}
+                                : '登录后在后台运行，不弹出预览窗口'}
                         </p>
                       </div>
                       <button

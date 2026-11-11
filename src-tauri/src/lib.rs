@@ -14,6 +14,7 @@ mod diagnostics;
 mod dwg;
 pub use dwg::worker_main as dwg_worker_main;
 mod shortcut;
+mod tray;
 use autostart::{autostart_enabled, set_autostart};
 
 #[tauri::command]
@@ -596,6 +597,8 @@ pub fn run() {
             initial_paths,
             autostart_enabled,
             set_autostart,
+            tray::tray_visible,
+            tray::set_tray_visible,
             agent_status,
             trace_preview,
             hide_preview,
@@ -615,38 +618,7 @@ pub fn run() {
                 macos_agent::start(app.handle().clone());
                 macos_menu::install(app)?;
             }
-            use tauri::{menu::MenuItem, tray::TrayIconBuilder};
-            let show = MenuItem::with_id(app, "show", "打开瞬览", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "退出瞬览", true, None::<&str>)?;
-            #[cfg(not(target_os = "macos"))]
-            let menu = tauri::menu::Menu::with_items(app, &[&show, &quit])?;
-            #[cfg(target_os = "macos")]
-            let menu = macos_menu::tray_menu(app, &show, &quit)?;
-            let mut tray = TrayIconBuilder::new()
-                .menu(&menu)
-                .tooltip("瞬览 SpacePreview");
-            if let Some(icon) = app.default_window_icon() {
-                tray = tray.icon(icon.clone());
-            }
-            #[cfg(target_os = "macos")]
-            {
-                tray = tray
-                    .icon(macos_menu::tray_icon())
-                    .icon_as_template(true)
-                    .show_menu_on_left_click(true);
-            }
-            tray.on_menu_event(|app, event| match event.id.as_ref() {
-                "show" => {
-                    if let Some(w) = app.get_webview_window("main") {
-                        let _ = w.show();
-                        let _ = w.unminimize();
-                        let _ = w.set_focus();
-                    }
-                }
-                "quit" => app.exit(0),
-                _ => (),
-            })
-            .build(app)?;
+            tray::configure(app)?;
             if !autostart::background_launch(&std::env::args().collect::<Vec<_>>()) {
                 if let Some(window) = app.get_webview_window("main") {
                     window.show()?;

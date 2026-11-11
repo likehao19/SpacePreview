@@ -1,7 +1,7 @@
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem, SubmenuBuilder},
-    App, Emitter, Manager,
+    App, AppHandle, Emitter, Manager,
 };
 
 pub fn install(app: &App) -> tauri::Result<()> {
@@ -73,7 +73,7 @@ pub fn install(app: &App) -> tauri::Result<()> {
 }
 
 pub fn tray_menu(
-    app: &App,
+    app: &AppHandle,
     show: &MenuItem<tauri::Wry>,
     quit: &MenuItem<tauri::Wry>,
 ) -> tauri::Result<Menu<tauri::Wry>> {
