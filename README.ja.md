@@ -92,13 +92,13 @@ SpacePreview はローカルファイルのプレビューツールです。Wind
 | macOS | [Intel 用 DMG](https://spacepreview.likh.cn/downloads/latest/SpacePreview-macos-x64.dmg) | x86_64 |
 | Linux | [AppImage](https://spacepreview.likh.cn/downloads/latest/SpacePreview-linux-x64.AppImage) · [DEB](https://spacepreview.likh.cn/downloads/latest/SpacePreview-linux-x64.deb) | x86_64 |
 
-直接リンクは v0.10.23 用です。[公式サイト](https://spacepreview.likh.cn/)は最新リリースを自動確認します。履歴は [GitHub Releases](https://github.com/likehao19/SpacePreview/releases) で確認できます。
+直接リンクは v0.10.24 用です。[公式サイト](https://spacepreview.likh.cn/)は最新リリースを自動確認します。履歴は [GitHub Releases](https://github.com/likehao19/SpacePreview/releases) で確認できます。
 
 ## インストール
 
 ### Windows
 
-`SpacePreview-0.10.23-windows-x64-setup.exe` をダウンロードし、インストーラーに従って操作します。Windows 10/11 x64 に対応し、Microsoft Edge WebView2 Runtime が必要です。
+`SpacePreview-0.10.24-windows-x64-setup.exe` をダウンロードし、インストーラーに従って操作します。Windows 10/11 x64 に対応し、Microsoft Edge WebView2 Runtime が必要です。
 
 起動後、エクスプローラーまたはデスクトップでファイルを選び、`Space` を押します。ウィンドウを閉じてもトレイに常駐します。終了するにはトレイメニューを使います。
 
@@ -119,11 +119,11 @@ Finder 連携にはアクセシビリティと Finder のオートメーショ�
 
 ```bash
 # AppImage
-chmod +x SpacePreview-0.10.23-linux-x64.AppImage
-./SpacePreview-0.10.23-linux-x64.AppImage
+chmod +x SpacePreview-0.10.24-linux-x64.AppImage
+./SpacePreview-0.10.24-linux-x64.AppImage
 
 # Debian 系
-sudo apt install ./SpacePreview-0.10.23-linux-x64.deb
+sudo apt install ./SpacePreview-0.10.24-linux-x64.deb
 ```
 
 ドラッグ＆ドロップまたは `Ctrl+O` で開きます。Linux のスペースキー連携、RPM、ARM64 パッケージは現在提供していません。
