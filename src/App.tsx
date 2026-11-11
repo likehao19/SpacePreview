@@ -195,6 +195,7 @@ export default function App() {
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
+  const fileLinkHistory = archiveStack.some((entry) => entry.path);
   useEffect(() => {
     if (settingsOpen || !file) {
       navigation.current = null;
@@ -901,10 +902,10 @@ export default function App() {
               {archiveStack.length > 0 && (
                 <button
                   className="archive-back-button"
-                  title="返回列表 · ←"
+                  title={archiveStack.at(-1)?.path ? '返回上一个文件 · ←' : '返回列表 · ←'}
                   onClick={() => setArchiveStack((stack) => stack.slice(0, -1))}
                 >
-                  <ArrowLeft size={15} /> 返回列表
+                  <ArrowLeft size={15} /> {archiveStack.at(-1)?.path ? '返回' : '返回列表'}
                 </button>
               )}
               <div className="file-title">
@@ -1165,30 +1166,36 @@ export default function App() {
           aria-label={preferences.tabs ? files[0].name : undefined}
           className={`preview-container kind-${mode === 'auto' ? detectKind(file.name) : mode}`}
         >
-          {[files[0], ...archiveStack].map((item, depth) => (
-            <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
-              <PreviewMenuTarget.Provider value={depth === archiveStack.length ? menuTarget : null}>
-                <TextAppearanceProvider
-                  active={depth === archiveStack.length && !settingsOpen && !recording}
+          {[files[0], ...archiveStack].map((item, depth) =>
+            depth !== archiveStack.length && fileLinkHistory ? null : (
+              <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
+                <PreviewMenuTarget.Provider
+                  value={depth === archiveStack.length ? menuTarget : null}
                 >
-                  <FileSearch active={depth === archiveStack.length && !settingsOpen && !recording}>
-                    <PreviewSession cache={tabPreview.view(item.id)}>
-                      <Preview
-                        key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
-                        file={item}
-                        mode={depth === archiveStack.length ? mode : 'auto'}
-                        onOpen={(inside) => {
-                          request.current++;
-                          setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
-                          setMode('auto');
-                        }}
-                      />
-                    </PreviewSession>
-                  </FileSearch>
-                </TextAppearanceProvider>
-              </PreviewMenuTarget.Provider>
-            </div>
-          ))}
+                  <TextAppearanceProvider
+                    active={depth === archiveStack.length && !settingsOpen && !recording}
+                  >
+                    <FileSearch
+                      active={depth === archiveStack.length && !settingsOpen && !recording}
+                    >
+                      <PreviewSession cache={tabPreview.view(item.id)}>
+                        <Preview
+                          key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
+                          file={item}
+                          mode={depth === archiveStack.length ? mode : 'auto'}
+                          onOpen={(inside) => {
+                            request.current++;
+                            setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
+                            setMode('auto');
+                          }}
+                        />
+                      </PreviewSession>
+                    </FileSearch>
+                  </TextAppearanceProvider>
+                </PreviewMenuTarget.Provider>
+              </div>
+            ),
+          )}
         </main>
       ) : null}
       {macos && !file && !previewError && !settingsOpen && !opening && (

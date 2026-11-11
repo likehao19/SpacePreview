@@ -44,6 +44,7 @@ export interface PreviewFile {
   modified: number;
   mime: string;
   path?: string;
+  anchor?: string;
   directory?: boolean;
   blob?: Blob;
 }

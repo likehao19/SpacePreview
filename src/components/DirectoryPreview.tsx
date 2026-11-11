@@ -6,6 +6,7 @@ import { listDirectory, openDefault, type DirectoryPage } from '../lib/bridge';
 import FileIcon from './FileIcon';
 import Preview from './Preview';
 import DirectorySidebar from './DirectorySidebar';
+import PreviewSession, { newSessionCache, type SessionCache } from './PreviewSession';
 
 type Branch = DirectoryPage & { loading?: boolean; error?: string };
 export default function DirectoryPreview({
@@ -18,6 +19,7 @@ export default function DirectoryPreview({
   const [branches, setBranches] = useState<Record<string, Branch>>({});
   const [expanded, setExpanded] = useState(new Set([file.id]));
   const [stack, setStack] = useState<PreviewFile[]>([]);
+  const sessions = useRef(new Map<string, SessionCache>());
   const [error, setError] = useState('');
   const pending = useRef(new Set<string>());
   const alive = useRef(true);
@@ -26,6 +28,8 @@ export default function DirectoryPreview({
     '正在读取文件夹',
   );
   const selected = stack.at(-1);
+  if (selected && !sessions.current.has(selected.id))
+    sessions.current.set(selected.id, newSessionCache());
   const load = async (folder: PreviewFile, offset = 0) => {
     if (pending.current.has(folder.id)) return;
     pending.current.add(folder.id);
@@ -199,12 +203,14 @@ export default function DirectoryPreview({
             </div>
             {error && <p role="alert">{error}</p>}
             <div className="directory-file-preview">
-              <Preview
-                key={`${selected.id}:${mode}`}
-                file={selected}
-                mode={mode}
-                onOpen={(entry) => setStack((value) => [...value, entry])}
-              />
+              <PreviewSession key={selected.id} cache={sessions.current.get(selected.id)!}>
+                <Preview
+                  key={`${selected.id}:${mode}`}
+                  file={selected}
+                  mode={mode}
+                  onOpen={(entry) => setStack((value) => [...value, entry])}
+                />
+              </PreviewSession>
             </div>
           </>
         ) : (

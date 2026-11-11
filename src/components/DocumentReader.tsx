@@ -9,6 +9,10 @@ import { List, ChevronLeft, Search, X } from 'lucide-react';
 import ReadingWidth from './ReadingWidth';
 import { usePreviewState } from './PreviewSession';
 import { markdownImageUrl } from '../lib/markdown-images';
+import { documentLink, headingSlug } from '../lib/document-links';
+import { desktop } from '../lib/bridge';
+import type { PreviewFile } from '../lib/files';
+import { usePreviewLoading } from './PreviewLoading';
 
 export interface OutlineItem {
   id: string;
@@ -178,6 +182,8 @@ export default function DocumentReader({
   toolbar,
   remoteImages = false,
   imagePath,
+  onOpen,
+  initialAnchor,
 }: {
   html: string;
   loading?: boolean;
@@ -185,9 +191,25 @@ export default function DocumentReader({
   toolbar?: React.ReactNode;
   remoteImages?: boolean;
   imagePath?: string;
+  onOpen?: (file: PreviewFile) => void;
+  initialAnchor?: string;
 }) {
   const scroll = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState('');
+  const [pendingAnchor, setPendingAnchor] = usePreviewState<string | null>(
+    'document.linkAnchor',
+    initialAnchor ?? null,
+  );
+  const [linkError, setLinkError] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+  const navigation = useRef(0);
+  usePreviewLoading(linkBusy, '正在打开链接');
+  useEffect(
+    () => () => {
+      navigation.current++;
+    },
+    [],
+  );
   const document = useMemo(() => {
     const safe = DOMPurify.sanitize(html, {
       FORBID_TAGS: [
@@ -245,10 +267,7 @@ export default function DocumentReader({
     const counts = new Map<string, number>();
     const outline = Array.from(parsed.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((heading, i) => {
       const title = heading.textContent?.trim() || '无标题';
-      const slug = title
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-        .replace(/\s/g, '-');
+      const slug = headingSlug(title);
       const count = counts.get(slug) || 0;
       counts.set(slug, count + 1);
       if (heading.id) anchors.set(heading.id, `reader-heading-${i}`);
@@ -264,7 +283,7 @@ export default function DocumentReader({
         /* Invalid fragment stays inert. */
       }
     });
-    return { html: parsed.body.innerHTML, outline };
+    return { html: parsed.body.innerHTML, outline, anchors };
   }, [html, remoteImages]);
   useEffect(() => {
     if (!scroll.current) return;
@@ -338,20 +357,76 @@ export default function DocumentReader({
     });
     return trackReadingPosition(scroll.current, headings, setActiveId);
   }, [document]);
+  useEffect(() => {
+    if (pendingAnchor === null || !scroll.current) return;
+    const id = document.anchors.get(pendingAnchor) ?? pendingAnchor;
+    const target = id
+      ? scroll.current.querySelector(`#${CSS.escape(id)}, a[name="${CSS.escape(id)}"]`)
+      : scroll.current.querySelector('article');
+    if (target) {
+      target.scrollIntoView({ block: 'start' });
+      setPendingAnchor(null);
+    } else if (!loading) {
+      setLinkError(`未找到文档位置：${pendingAnchor}`);
+      setPendingAnchor(null);
+    }
+  }, [document, pendingAnchor, loading, setPendingAnchor]);
+  const followLink = async (reference: string) => {
+    const version = ++navigation.current;
+    setLinkError('');
+    try {
+      const link = documentLink(reference);
+      if (link.kind === 'anchor') {
+        setPendingAnchor(link.anchor);
+        return;
+      }
+      if (link.kind === 'external') {
+        if (desktop) await invoke('open_document_url', { url: link.url });
+        else window.open(link.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      if (!desktop || !imagePath || !onOpen)
+        throw new Error('请从桌面端打开原 Markdown 文件，再跳转本地文件链接');
+      setLinkBusy(true);
+      const target = await invoke<PreviewFile>('resolve_document_link', {
+        path: imagePath,
+        relative: link.path,
+      });
+      if (version !== navigation.current) return;
+      if (target.path === imagePath) setPendingAnchor(link.anchor);
+      else
+        onOpen({ ...target, id: `${target.id}:link:${crypto.randomUUID()}`, anchor: link.anchor });
+    } catch (error) {
+      if (version === navigation.current) setLinkError(`无法打开链接：${String(error)}`);
+    } finally {
+      if (version === navigation.current) setLinkBusy(false);
+    }
+  };
   return (
     <ReadingLayout
       loading={loading}
       outline={document.outline}
       activeId={activeId}
-      onNavigate={(id) =>
-        globalThis.document.getElementById(id)?.scrollIntoView({ block: 'start' })
-      }
+      onNavigate={(id) => {
+        setPendingAnchor(null);
+        scroll.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ block: 'start' });
+      }}
       toolbar={toolbar}
     >
       <ReadingWidth>
-        <div className="document-scroll" ref={scroll}>
+        <div
+          className="document-scroll"
+          ref={scroll}
+          onWheel={() => setPendingAnchor(null)}
+          onPointerDown={() => setPendingAnchor(null)}
+        >
           <TextAppearanceControls />
           {note && <div className="document-note">{note}</div>}
+          {linkError && (
+            <div className="document-note" role="alert">
+              {linkError}
+            </div>
+          )}
           <article
             className="document-paper prose"
             style={{
@@ -363,10 +438,7 @@ export default function DocumentReader({
               if (anchor) {
                 e.preventDefault();
                 const href = anchor.getAttribute('href');
-                if (href?.startsWith('#reader-heading-'))
-                  globalThis.document
-                    .getElementById(href.slice(1))
-                    ?.scrollIntoView({ block: 'start' });
+                if (href !== null && (remoteImages || href.startsWith('#'))) void followLink(href);
               }
             }}
             onErrorCapture={(event) => {

@@ -202,6 +202,84 @@ fn authorized(path: &str, state: &PreviewState) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+// User-clicked links may reach parent directories; passive HTML/image loads may not.
+fn document_link_path(source: &Path, relative: &str) -> Result<PathBuf, String> {
+    if ![
+        "md",
+        "markdown",
+        "mdx",
+        "mmd",
+        "mdc",
+        "mkd",
+        "mdwn",
+        "mdown",
+        "qmd",
+        "rmd",
+        "rmarkdown",
+        "apib",
+        "mdtxt",
+        "mdtext",
+    ]
+    .contains(
+        &source
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .as_str(),
+    ) {
+        return Err("请从 Markdown 文档打开文件链接".into());
+    }
+    if relative.is_empty()
+        || relative.contains('\0')
+        || relative.contains(':')
+        || relative.starts_with('/')
+        || relative.starts_with('\\')
+        || Path::new(relative).is_absolute()
+    {
+        return Err("文件链接必须使用相对路径".into());
+    }
+    source
+        .parent()
+        .ok_or("文件所在目录无效")?
+        .join(relative.replace('\\', "/"))
+        .canonicalize()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn resolve_document_link(
+    path: String,
+    relative: String,
+    app: tauri::AppHandle,
+    state: State<'_, PreviewState>,
+) -> Result<FileInfo, String> {
+    let source = authorized(&path, &state)?;
+    let target =
+        tauri::async_runtime::spawn_blocking(move || document_link_path(&source, &relative))
+            .await
+            .map_err(|error| error.to_string())??;
+    inspect_file(target.to_string_lossy().into_owned(), app, state)
+}
+
+fn external_document_url(url: &str) -> Result<tauri::Url, String> {
+    let url = tauri::Url::parse(url).map_err(|error| error.to_string())?;
+    if !["https", "http"].contains(&url.scheme())
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return Err("只支持 HTTP 或 HTTPS 网页链接".into());
+    }
+    Ok(url)
+}
+
+#[tauri::command]
+fn open_document_url(url: String) -> Result<(), String> {
+    let url = external_document_url(&url)?;
+    open::that(url.as_str()).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 async fn render_presentation(
     path: String,
@@ -582,6 +660,8 @@ pub fn run() {
         .manage(PreviewState::default())
         .invoke_handler(tauri::generate_handler![
             inspect_file,
+            resolve_document_link,
+            open_document_url,
             file_icon,
             render_presentation,
             read_prefix,
@@ -680,6 +760,59 @@ mod tests {
     fn unselected_files_cannot_be_read() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
         assert!(authorized(path.to_str().unwrap(), &PreviewState::default()).is_err());
+    }
+    #[test]
+    fn clicked_markdown_links_resolve_relative_files_without_reading_them() {
+        let root = std::env::temp_dir().join(format!("spacepreview-links-{}", std::process::id()));
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::write(root.join("docs/README.md"), b"markdown").unwrap();
+        fs::write(root.join("docs/开始 使用.md"), b"target").unwrap();
+        fs::write(root.join("report.pdf"), b"pdf").unwrap();
+        let root = fs::canonicalize(root).unwrap();
+        let source = root.join("docs/README.md");
+        assert_eq!(
+            document_link_path(&source, "./开始 使用.md").unwrap(),
+            root.join("docs/开始 使用.md")
+        );
+        assert_eq!(
+            document_link_path(&source, "..\\report.pdf").unwrap(),
+            root.join("report.pdf")
+        );
+        assert_eq!(document_link_path(&source, "..").unwrap(), root);
+        assert!(document_link_path(&source, "missing.md").is_err());
+        for value in [
+            "",
+            "/etc/passwd",
+            "C:\\file.md",
+            "\\\\host\\file",
+            "file:///etc/passwd",
+            "https://example.com",
+            "bad\0.md",
+        ] {
+            assert!(document_link_path(&source, value).is_err(), "{value}");
+        }
+        assert!(document_link_path(&root.join("index.html"), "report.pdf").is_err());
+        // A click grants its target later, not access to arbitrary sibling files here.
+        assert!(authorized(
+            root.join("report.pdf").to_str().unwrap(),
+            &PreviewState::default()
+        )
+        .is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn document_external_links_cannot_launch_custom_protocols() {
+        assert!(external_document_url("https://example.com/docs#section").is_ok());
+        assert!(external_document_url("http://example.com").is_ok());
+        for value in [
+            "file:///tmp/a",
+            "javascript:alert(1)",
+            "mailto:a@example.com",
+            "https://user:pass@example.com",
+            "not a URL",
+        ] {
+            assert!(external_document_url(value).is_err(), "{value}");
+        }
     }
     #[test]
     fn directory_preview_is_shallow_and_paginated() {

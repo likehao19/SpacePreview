@@ -221,6 +221,7 @@ export default function Preview({
     <ParsedPreview
       file={file}
       kind={kind}
+      onOpen={onOpen}
       onLayout={kind === 'docx' && mode !== 'text' ? () => setWordText(false) : undefined}
     />
   );
@@ -1197,6 +1198,7 @@ function ParsedPreview({
   file,
   kind,
   onLayout,
+  onOpen,
 }: {
   file: PreviewFile;
   kind: Exclude<
@@ -1204,6 +1206,7 @@ function ParsedPreview({
     'archive-entry' | 'archive-directory' | 'archive-data' | 'docx-layout'
   >;
   onLayout?: () => void;
+  onOpen?: (file: PreviewFile) => void;
 }) {
   const [result, setResult] = useState<WorkerResult | null>(null);
   const [progress, setProgress] = useState(0);
@@ -1455,6 +1458,8 @@ function ParsedPreview({
           html={result.html ?? ''}
           remoteImages={kind === 'markdown'}
           imagePath={kind === 'markdown' ? file.path : undefined}
+          onOpen={kind === 'markdown' ? onOpen : undefined}
+          initialAnchor={kind === 'markdown' ? file.anchor : undefined}
           toolbar={
             <>
               <span className="reading-label">
