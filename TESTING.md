@@ -1,5 +1,13 @@
 # 验证记录
 
+## v0.10.24 发布验收（2026-11-11）
+
+- 主分支与 `v0.10.24` 标签已推送，发布提交 `d7c7412`。四个平台的前端/Rust 测试、安装包构建、架构与签名收集均通过；Linux 桌面启动检查通过。[发布流水线 42983907673](https://github.com/likehao19/SpacePreview/actions/runs/42983907673) 的全部构建、GitHub 发布与官方服务器主动上传成功。正式 Release 含 13 个附件，包含 Markdown 链接导航与托盘图标显隐设置。
+- 从公网运行 `scripts/verify-official-downloads.py`，实际下载全部安装包、两种 macOS 更新归档及签名，核对大小、GitHub 摘要与服务器 SHA-256，使用既有公钥验证四个平台更新签名。清单版本、四个平台实际更新 URL、禁止缓存响应与五个备用下载入口均通过。临时下载自动清理。
+- ego-browser 真实访问官网，显示 `v0.10.24`，五种安装包链接均指向 `https://spacepreview.likh.cn/downloads/v0.10.24/`；验收页面已关闭。
+- 服务器 `current -> releases/v0.10.24`，仅保留该完整版本，staging 无遗留文件；半小时定时器 active。再次运行现有补同步服务得到 `Skipped v0.10.24: already synchronized or older`，服务正常退出。本站 Nginx、HTTPS 与现有备份未修改，恢复方式沿用 [官方分发运维](docs/OFFICIAL-DOWNLOADS.md)。
+- 本轮未执行各平台安装器或真实客户端安装升级；构建、下载与验签不替代安装升级实机验收。未启动或遗留本地开发服务。
+
 ## Markdown 链接导航（2026-11-11）
 
 - 标准 Markdown 链接支持页内标题/显式锚点、同目录及上级目录的相对路径、中文和 URI 编码文件名、跨 Markdown 文件章节定位。文件通过现有预览器打开，网页链接仅允许 HTTP(S)，交由默认浏览器；不执行自定义协议。浏览器选取或压缩包内缺少本地原始路径的 Markdown 暂不支持相对文件跳转。
