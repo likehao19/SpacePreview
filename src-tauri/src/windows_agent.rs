@@ -114,6 +114,12 @@ unsafe fn class_name(hwnd: HWND) -> String {
     String::from_utf16_lossy(&buffer[..length.max(0) as usize])
 }
 
+// Modern Chromium file pickers use a system dialog owned by the browser.
+unsafe fn browser_file_dialog(window: HWND) -> bool {
+    class_name(window) == "#32770"
+        && GetWindow(window, GW_OWNER).is_ok_and(|owner| class_name(owner) == "Chrome_WidgetWin_1")
+}
+
 unsafe fn file_list_has_focus(foreground: HWND) -> bool {
     if crate::everything::is_window_class(&class_name(foreground)) {
         return focused_window(foreground)
@@ -122,7 +128,8 @@ unsafe fn file_list_has_focus(foreground: HWND) -> bool {
     if !matches!(
         class_name(foreground).as_str(),
         "CabinetWClass" | "ExploreWClass" | "Progman" | "WorkerW"
-    ) {
+    ) && !browser_file_dialog(foreground)
+    {
         return false;
     }
     let mut info = GUITHREADINFO {
@@ -301,7 +308,93 @@ unsafe fn paths_from_browser(
     Ok(paths)
 }
 
+// Resolve a visible filename only if it uniquely identifies an entry. Explorer can hide
+// extensions, so a displayed name may match either the complete name or a stem.
+fn dialog_file(folder: &Path, label: &str) -> Option<String> {
+    if !matches!(folder.components().next(), Some(std::path::Component::Prefix(prefix))
+        if matches!(prefix.kind(), std::path::Prefix::Disk(_)))
+        || !folder.is_absolute()
+        || label.is_empty()
+        || label.contains(['/', '\\', ':'])
+    {
+        return None;
+    }
+    let mut found = None;
+    let mut entries = std::fs::read_dir(folder).ok()?;
+    for entry in entries.by_ref().take(10_000) {
+        let path = entry.ok()?.path();
+        let matches = |name: Option<&std::ffi::OsStr>| name.is_some_and(|name| name == label);
+        if matches(path.file_name()) || matches(path.file_stem()) {
+            if found.is_some() || !path.is_file() {
+                return None;
+            }
+            found = path.to_str().map(str::to_owned);
+        }
+    }
+    if entries.next().is_some() {
+        return None;
+    }
+    found
+}
+
+unsafe fn dialog_selection(window: HWND) -> windows::core::Result<Vec<String>> {
+    use windows::Win32::UI::Accessibility::*;
+    if !file_list_has_focus(window) {
+        return Ok(Vec::new());
+    }
+    let ui: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_ALL)?;
+    let root = ui.ElementFromHandle(window)?;
+    let focus = ui.GetFocusedElement()?;
+    let selected: IUIAutomationSelectionItemPattern =
+        focus.GetCurrentPatternAs(UIA_SelectionItemPatternId)?;
+    if !selected.CurrentIsSelected()?.as_bool() {
+        return Ok(Vec::new());
+    }
+    let list = selected.CurrentSelectionContainer()?;
+    let selection: IUIAutomationSelectionPattern =
+        list.GetCurrentPatternAs(UIA_SelectionPatternId)?;
+    let items = selection.GetCurrentSelection()?;
+    if items.Length()? != 1 || !ui.CompareElements(&focus, &items.GetElement(0)?)?.as_bool() {
+        return Ok(Vec::new());
+    }
+    let condition = ui.CreatePropertyCondition(
+        UIA_ClassNamePropertyId,
+        &VARIANT::from(windows::core::BSTR::from("ToolbarWindow32")),
+    )?;
+    let elements = root.FindAll(TreeScope_Descendants, &condition)?;
+    let mut folder = None;
+    for index in 0..elements.Length()?.min(2048) {
+        let element = elements.GetElement(index)?;
+        let name = element.CurrentName()?.to_string();
+        // Only accept address toolbars reporting an explicit local directory.
+        let path = ["Address:", "地址:", "地址："]
+            .iter()
+            .find_map(|prefix| name.strip_prefix(prefix));
+        if let Some(path) = path {
+            if folder.replace(path.trim().to_owned()).is_some() {
+                return Ok(Vec::new());
+            }
+        }
+    }
+    if GetForegroundWindow() != window
+        || !ui
+            .CompareElements(&focus, &ui.GetFocusedElement()?)?
+            .as_bool()
+    {
+        return Ok(Vec::new());
+    }
+    let label = focus.CurrentName()?.to_string();
+    Ok(folder
+        .and_then(|path| dialog_file(Path::new(&path), &label))
+        .into_iter()
+        .collect())
+}
+
 unsafe fn selected_paths(foreground: HWND) -> windows::core::Result<Vec<String>> {
+    if browser_file_dialog(foreground) {
+        READ_VIEW.set(0);
+        return dialog_selection(foreground);
+    }
     if crate::everything::is_window_class(&class_name(foreground)) {
         READ_VIEW.set(0);
         let (paths, list) = crate::everything::selected_paths(foreground)?;
@@ -363,6 +456,7 @@ pub fn start(app: AppHandle) {
                 Ok(paths) if !paths.is_empty() && GetForegroundWindow() == foreground => {
                     crate::diagnostics::record(format!("selection count={}", paths.len()));
                     let source_view = READ_VIEW.get();
+                    let file_manager = !browser_file_dialog(foreground);
                     if app.get_webview_window("main").is_some() {
                         let preview_app = app.clone();
                         let _ = app.run_on_main_thread(move || {
@@ -376,7 +470,7 @@ pub fn start(app: AppHandle) {
                             SOURCE_WINDOW.store(handle, Ordering::Relaxed);
                             // Share startup queuing with Open With / single-instance requests.
                             // A successful emit before the WebView subscribes otherwise loses the file.
-                            crate::show_preview_files(&preview_app, paths, text, true);
+                            crate::show_preview_files(&preview_app, paths, text, file_manager);
                         });
                     }
                 }
@@ -427,6 +521,30 @@ fn read_selection(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn dialog_requires_an_unambiguous_local_filename() {
+        let folder =
+            std::env::temp_dir().join(format!("spacepreview-dialog-{}", std::process::id()));
+        std::fs::create_dir(&folder).unwrap();
+        let first = folder.join("演示.txt");
+        let second = folder.join("演示.pdf");
+        std::fs::write(&first, b"demo").unwrap();
+        assert_eq!(
+            super::dialog_file(&folder, "演示"),
+            first.to_str().map(str::to_owned)
+        );
+        assert!(super::dialog_file(&folder, "../演示.txt").is_none());
+        std::fs::write(&second, b"demo").unwrap();
+        assert!(super::dialog_file(&folder, "演示").is_none());
+        assert_eq!(
+            super::dialog_file(&folder, "演示.txt"),
+            first.to_str().map(str::to_owned)
+        );
+        std::fs::remove_file(first).unwrap();
+        std::fs::remove_file(second).unwrap();
+        std::fs::remove_dir(folder).unwrap();
+    }
+
     use super::*;
 
     #[test]
