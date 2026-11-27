@@ -93,10 +93,12 @@ export default function Preview({
   file,
   mode,
   onOpen,
+  watchFileChanges = false,
 }: {
   file: PreviewFile;
   mode: 'auto' | 'text' | 'info';
   onOpen: (file: PreviewFile) => void;
+  watchFileChanges?: boolean;
 }) {
   const registered = detectKind(file.name);
   const textContainer = [
@@ -165,7 +167,10 @@ export default function Preview({
             : detected
           : registered;
   usePreviewLoading(!kind && !file.directory && !tooLarge, '正在识别文件类型');
-  if (file.directory) return <DirectoryPreview key={file.id} file={file} mode={mode} />;
+  if (file.directory)
+    return (
+      <DirectoryPreview key={file.id} file={file} mode={mode} watchFileChanges={watchFileChanges} />
+    );
   if (tooLarge && (mode === 'info' || showInfo || registered === 'binary'))
     return <BinaryPreview file={file} />;
   if (tooLarge && mode !== 'info' && !showInfo)

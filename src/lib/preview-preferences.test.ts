@@ -11,8 +11,15 @@ it('restores shared reading preferences from storage', () => {
     maxArchiveEntryMiB: 256,
     tabs: false,
     readingWidth: 860,
+    fileChanges: 'auto',
   };
   expect(parsePreviewPreferences(JSON.stringify(preferences))).toEqual(preferences);
+});
+
+it('defaults existing preferences to a reload prompt, and accepts disabling file checks', () => {
+  expect(parsePreviewPreferences('{"tabs":true}').fileChanges).toBe('prompt');
+  expect(parsePreviewPreferences('{"fileChanges":"off"}').fileChanges).toBe('off');
+  expect(parsePreviewPreferences('{"fileChanges":"invalid"}').fileChanges).toBe('prompt');
 });
 it('falls back safely for corrupt and invalid persisted preferences', () => {
   const defaults = parsePreviewPreferences(null);

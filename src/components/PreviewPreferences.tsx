@@ -12,6 +12,7 @@ import {
   textEncodings,
   type PreviewPreferences,
 } from '../lib/preview-preferences';
+import { desktop } from '../lib/bridge';
 
 const Preferences = createContext<{
   preferences: PreviewPreferences;
@@ -63,6 +64,26 @@ export default function PreviewPreferencesSettings() {
         开启后新文件进入新标签；空格关闭当前标签，Esc
         或窗口关闭按钮关闭全部。启用失焦关闭时仅隐藏窗口并保留标签。切换标签或隐藏窗口会释放旧预览任务，返回时重新加载并恢复阅读位置。
       </p>
+      {desktop && (
+        <>
+          <h3>文件更新</h3>
+          <div className="preference-group">
+            <label className="preference-row">
+              <span>当前文件在外部修改后</span>
+              <select
+                value={preferences.fileChanges}
+                onChange={(e) =>
+                  update('fileChanges', e.target.value as PreviewPreferences['fileChanges'])
+                }
+              >
+                <option value="prompt">提示重新加载</option>
+                <option value="auto">自动刷新</option>
+                <option value="off">关闭变动检查</option>
+              </select>
+            </label>
+          </div>
+        </>
+      )}
       <h3>资源与性能</h3>
       <div className="preference-group">
         <label className="preference-row">

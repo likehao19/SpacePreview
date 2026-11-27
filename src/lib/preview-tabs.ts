@@ -41,7 +41,11 @@ export function openPreviewTabs(
         }
       }
       tabs.push({ id, file, mode, source, archiveStack: [], views: new Map() });
-    } else if (existing.file.modified !== file.modified || existing.file.size !== file.size) {
+    } else if (
+      existing.file.modified !== file.modified ||
+      existing.file.size !== file.size ||
+      existing.file.revision !== file.revision
+    ) {
       tabs[tabs.indexOf(existing)] = { id, file, mode, source, archiveStack: [], views: new Map() };
     } else if (mode === 'text') {
       tabs[tabs.indexOf(existing)] = { ...existing, mode, source };

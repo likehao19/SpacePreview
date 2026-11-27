@@ -30,6 +30,72 @@ fn save(path: &Path, visible: bool) -> std::io::Result<()> {
     result
 }
 
+#[cfg(target_os = "macos")]
+pub struct DockPreference {
+    path: PathBuf,
+    visible: Mutex<bool>,
+}
+
+#[cfg(target_os = "macos")]
+pub fn configure_dock(app: &mut App) -> tauri::Result<()> {
+    let path = app.path().app_config_dir()?.join("dock-visible.json");
+    let visible = load(&path);
+    if !visible {
+        app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
+    app.manage(DockPreference {
+        path,
+        visible: Mutex::new(visible),
+    });
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub fn dock_visible(preference: State<'_, DockPreference>) -> Result<bool, String> {
+    preference
+        .visible
+        .lock()
+        .map(|value| *value)
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(target_os = "macos")]
+pub fn restore_hidden_dock(app: &AppHandle) {
+    if matches!(dock_visible(app.state()), Ok(false)) {
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub fn set_dock_visible(
+    app: AppHandle,
+    preference: State<'_, DockPreference>,
+    visible: bool,
+) -> Result<bool, String> {
+    let mut current = preference
+        .visible
+        .lock()
+        .map_err(|error| error.to_string())?;
+    if *current == visible {
+        return Ok(visible);
+    }
+    let policy = if visible {
+        tauri::ActivationPolicy::Regular
+    } else {
+        tauri::ActivationPolicy::Accessory
+    };
+    save(&preference.path, visible).map_err(|error| error.to_string())?;
+    if let Err(error) = app.set_activation_policy(policy) {
+        save(&preference.path, *current)
+            .map_err(|restore| format!("{error}，还原设置失败：{restore}"))?;
+        return Err(error.to_string());
+    }
+    *current = visible;
+    Ok(visible)
+}
+
 fn create(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "打开瞬览", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出瞬览", true, None::<&str>)?;

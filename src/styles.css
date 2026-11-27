@@ -4055,7 +4055,8 @@ button:disabled:hover {
   font-size: 13px;
   text-underline-offset: 3px;
 }
-.preview-loading-toast {
+.preview-loading-toast,
+.file-change-notice {
   position: fixed;
   right: 12px;
   bottom: 12px;
@@ -4072,6 +4073,18 @@ button:disabled:hover {
   box-shadow: 0 2px 8px #00000010;
   font-size: 12px;
   pointer-events: none;
+}
+.file-change-notice {
+  z-index: 51;
+  pointer-events: auto;
+}
+.file-change-notice button {
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.file-change-notice button:hover:not(:disabled) {
+  background: var(--subtle);
 }
 .preview-loading-toast .spinner {
   width: 14px;

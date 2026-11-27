@@ -134,6 +134,7 @@ struct FileInfo {
     path: String,
     size: u64,
     modified: u64,
+    revision: String,
     mime: String,
     directory: bool,
 }
@@ -143,13 +144,43 @@ fn metadata(path: &Path) -> Result<FileInfo, String> {
     if !info.is_file() && !info.is_dir() {
         return Err("此项目不是普通文件或文件夹。".into());
     }
+    Ok(file_info(path, &info))
+}
+
+fn file_revision(info: &fs::Metadata) -> String {
+    let modified = info.modified().ok();
+    let mut revision = format!("{modified:?}:{}", info.len());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        revision.push_str(&format!(
+            ":{}:{}:{}.{}",
+            info.dev(),
+            info.ino(),
+            info.ctime(),
+            info.ctime_nsec()
+        ));
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        revision.push_str(&format!(
+            ":{}:{}",
+            info.creation_time(),
+            info.file_attributes()
+        ));
+    }
+    revision
+}
+
+fn file_info(path: &Path, info: &fs::Metadata) -> FileInfo {
     let name = path
         .file_name()
         .unwrap_or_else(|| path.as_os_str())
         .to_string_lossy()
         .to_string();
     let path = path.to_string_lossy().to_string();
-    Ok(FileInfo {
+    FileInfo {
         directory: info.is_dir(),
         id: path.clone(),
         mime: mime_guess::from_path(&path)
@@ -164,7 +195,63 @@ fn metadata(path: &Path) -> Result<FileInfo, String> {
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0),
-    })
+        revision: file_revision(info),
+    }
+}
+
+#[derive(Serialize)]
+#[serde(tag = "state", rename_all = "camelCase")]
+enum FileChange {
+    Unchanged,
+    Changed { file: FileInfo },
+    Missing,
+    Unavailable,
+}
+
+fn check_file_change(path: &Path, revision: &str) -> FileChange {
+    let error_status = |error: std::io::Error| match error.kind() {
+        std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory => FileChange::Missing,
+        _ => FileChange::Unavailable,
+    };
+    let canonical = match fs::canonicalize(path) {
+        Ok(canonical) if canonical == path => canonical,
+        Ok(_) => return FileChange::Unavailable,
+        Err(error) => return error_status(error),
+    };
+    let info = match fs::metadata(&canonical) {
+        Ok(info) if info.is_file() => info,
+        Ok(_) => return FileChange::Unavailable,
+        Err(error) => return error_status(error),
+    };
+    if file_revision(&info) == revision {
+        return FileChange::Unchanged;
+    }
+    // Only check read access after a change, without reading the contents.
+    match File::open(&canonical) {
+        Ok(_) => FileChange::Changed {
+            file: file_info(&canonical, &info),
+        },
+        Err(error) => error_status(error),
+    }
+}
+
+#[tauri::command]
+async fn check_preview_file(
+    path: PathBuf,
+    revision: String,
+    state: State<'_, PreviewState>,
+) -> Result<FileChange, String> {
+    if !state
+        .allowed
+        .lock()
+        .map_err(|e| e.to_string())?
+        .contains(&path)
+    {
+        return Err("请先选择此文件。".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || check_file_change(&path, &revision))
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -660,6 +747,7 @@ pub fn run() {
         .manage(PreviewState::default())
         .invoke_handler(tauri::generate_handler![
             inspect_file,
+            check_preview_file,
             resolve_document_link,
             open_document_url,
             file_icon,
@@ -679,6 +767,10 @@ pub fn run() {
             set_autostart,
             tray::tray_visible,
             tray::set_tray_visible,
+            #[cfg(target_os = "macos")]
+            tray::dock_visible,
+            #[cfg(target_os = "macos")]
+            tray::set_dock_visible,
             agent_status,
             trace_preview,
             hide_preview,
@@ -695,6 +787,7 @@ pub fn run() {
             quicklook_pipe::start(app.handle().clone());
             #[cfg(target_os = "macos")]
             {
+                tray::configure_dock(app)?;
                 macos_agent::start(app.handle().clone());
                 macos_menu::install(app)?;
             }
@@ -730,12 +823,17 @@ pub fn run() {
                         .map(|path| path.to_string_lossy().into_owned())
                         .collect();
                     show_preview_files(app, paths, false, false);
+                    tray::restore_hidden_dock(app);
                 }
                 tauri::RunEvent::Reopen {
                     has_visible_windows,
                     ..
-                } if !has_visible_windows => {
-                    show_preview_files(app, Vec::new(), false, false);
+                } => {
+                    if !has_visible_windows {
+                        show_preview_files(app, Vec::new(), false, false);
+                    }
+                    // Launch Services may promote an existing accessory app when opened again.
+                    tray::restore_hidden_dock(app);
                 }
                 _ => (),
             }
@@ -747,6 +845,42 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn file_changes_track_writes_replacements_and_missing_paths() {
+        let root =
+            std::env::temp_dir().join(format!("spacepreview-changes-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let root = fs::canonicalize(root).unwrap();
+        let path = root.join("draft.md");
+        fs::write(&path, b"first").unwrap();
+        let first = metadata(&path).unwrap();
+        assert!(matches!(
+            check_file_change(&path, &first.revision),
+            FileChange::Unchanged
+        ));
+        fs::write(&path, b"second draft").unwrap();
+        let FileChange::Changed { file: second } = check_file_change(&path, &first.revision) else {
+            panic!("expected the saved edit to be detected");
+        };
+        assert_eq!(second.size, 12);
+        fs::write(root.join("replacement.tmp"), b"third").unwrap();
+        fs::rename(root.join("replacement.tmp"), &path).unwrap();
+        assert!(matches!(
+            check_file_change(&path, &second.revision),
+            FileChange::Changed { .. }
+        ));
+        fs::rename(&path, root.join("renamed.md")).unwrap();
+        assert!(matches!(
+            check_file_change(&path, &second.revision),
+            FileChange::Missing
+        ));
+        fs::create_dir(&path).unwrap();
+        assert!(matches!(
+            check_file_change(&path, &second.revision),
+            FileChange::Unavailable
+        ));
+        fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn bounded_reads_do_not_load_the_whole_file() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");

@@ -20,6 +20,7 @@ export type PreviewPreferences = {
   maxArchiveEntryMiB: number;
   tabs: boolean;
   readingWidth: number;
+  fileChanges: 'prompt' | 'auto' | 'off';
 };
 export function parsePreviewPreferences(raw: string | null): PreviewPreferences {
   let value: Partial<PreviewPreferences> = {};
@@ -30,6 +31,8 @@ export function parsePreviewPreferences(raw: string | null): PreviewPreferences 
   }
   return {
     tabs: value.tabs === true,
+    fileChanges:
+      value.fileChanges === 'auto' || value.fileChanges === 'off' ? value.fileChanges : 'prompt',
     readingWidth:
       Number.isInteger(value.readingWidth) &&
       value.readingWidth! >= 360 &&

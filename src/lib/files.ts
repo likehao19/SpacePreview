@@ -42,6 +42,7 @@ export interface PreviewFile {
   name: string;
   size: number;
   modified: number;
+  revision?: string;
   mime: string;
   path?: string;
   anchor?: string;

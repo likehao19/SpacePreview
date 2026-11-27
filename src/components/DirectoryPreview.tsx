@@ -7,14 +7,17 @@ import FileIcon from './FileIcon';
 import Preview from './Preview';
 import DirectorySidebar from './DirectorySidebar';
 import PreviewSession, { newSessionCache, type SessionCache } from './PreviewSession';
+import FileChangeNotice from './FileChangeNotice';
 
 type Branch = DirectoryPage & { loading?: boolean; error?: string };
 export default function DirectoryPreview({
   file,
   mode,
+  watchFileChanges,
 }: {
   file: PreviewFile;
   mode: 'auto' | 'text' | 'info';
+  watchFileChanges: boolean;
 }) {
   const [branches, setBranches] = useState<Record<string, Branch>>({});
   const [expanded, setExpanded] = useState(new Set([file.id]));
@@ -203,14 +206,34 @@ export default function DirectoryPreview({
             </div>
             {error && <p role="alert">{error}</p>}
             <div className="directory-file-preview">
-              <PreviewSession key={selected.id} cache={sessions.current.get(selected.id)!}>
+              <PreviewSession
+                key={`${selected.id}:${selected.revision}`}
+                cache={sessions.current.get(selected.id)!}
+              >
                 <Preview
                   key={`${selected.id}:${mode}`}
                   file={selected}
                   mode={mode}
+                  watchFileChanges={watchFileChanges}
                   onOpen={(entry) => setStack((value) => [...value, entry])}
                 />
               </PreviewSession>
+              {watchFileChanges && (
+                <FileChangeNotice
+                  key={`${selected.id}:${selected.revision}`}
+                  file={selected}
+                  onReload={(previous, latest) =>
+                    setStack((current) =>
+                      current.at(-1) === previous
+                        ? [
+                            ...current.slice(0, -1),
+                            { ...latest, id: previous.id, anchor: previous.anchor },
+                          ]
+                        : current,
+                    )
+                  }
+                />
+              )}
             </div>
           </>
         ) : (

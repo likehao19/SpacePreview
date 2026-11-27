@@ -57,6 +57,19 @@ export function usePreviewTabs(enabled: boolean) {
       current.tabs.some((tab) => tab.id === id) ? { ...current, active: id } : current,
     );
   const close = (id: string) => setState((current) => closePreviewTab(current, id));
+  const refreshFile = (previous: PreviewFile, latest: PreviewFile) => {
+    setState((current) => ({
+      ...current,
+      tabs: current.tabs.map((tab) => {
+        if (tab.id !== current.active || (tab.archiveStack.at(-1) ?? tab.file) !== previous)
+          return tab;
+        const next = { ...latest, id: previous.id, anchor: previous.anchor };
+        return tab.archiveStack.length
+          ? { ...tab, archiveStack: [...tab.archiveStack.slice(0, -1), next] }
+          : { ...tab, file: next };
+      }),
+    }));
+  };
   const view = (id: string) => {
     if (!active) throw new Error('No active preview tab');
     let cache = active.views.get(id);
@@ -77,6 +90,7 @@ export function usePreviewTabs(enabled: boolean) {
     clear,
     setMode,
     setArchiveStack,
+    refreshFile,
     select,
     close,
     view,

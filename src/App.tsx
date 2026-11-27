@@ -33,6 +33,7 @@ import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
 import ProjectLinks from './components/ProjectLinks';
 import TraySettings from './components/TraySettings';
+import FileChangeNotice from './components/FileChangeNotice';
 import PreviewPreferencesSettings, { usePreviewPreferences } from './components/PreviewPreferences';
 import PreviewSession from './components/PreviewSession';
 import { usePreviewTabs } from './lib/use-preview-tabs';
@@ -196,6 +197,7 @@ export default function App() {
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
   const fileLinkHistory = archiveStack.some((entry) => entry.path);
+  const watchFileChanges = !settingsOpen && !opening && !suspended;
   useEffect(() => {
     if (settingsOpen || !file) {
       navigation.current = null;
@@ -1178,11 +1180,12 @@ export default function App() {
                     <FileSearch
                       active={depth === archiveStack.length && !settingsOpen && !recording}
                     >
-                      <PreviewSession cache={tabPreview.view(item.id)}>
+                      <PreviewSession key={item.revision} cache={tabPreview.view(item.id)}>
                         <Preview
                           key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
                           file={item}
                           mode={depth === archiveStack.length ? mode : 'auto'}
+                          watchFileChanges={watchFileChanges && depth === archiveStack.length}
                           onOpen={(inside) => {
                             request.current++;
                             setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
@@ -1195,6 +1198,13 @@ export default function App() {
                 </PreviewMenuTarget.Provider>
               </div>
             ),
+          )}
+          {watchFileChanges && (
+            <FileChangeNotice
+              key={`${file.id}:${file.revision}`}
+              file={file}
+              onReload={tabPreview.refreshFile}
+            />
           )}
         </main>
       ) : null}
@@ -1366,6 +1376,7 @@ export default function App() {
                   <h3>窗口与启动</h3>
                   <div className="settings-toggles">
                     <TraySettings macos={macos} onError={setToast} />
+                    {macos && <TraySettings macos dock onError={setToast} />}
                     <div className="setting-row">
                       <Eye className="setting-icon" size={22} strokeWidth={1.5} />
                       <div>

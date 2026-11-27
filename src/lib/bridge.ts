@@ -88,7 +88,11 @@ export function fileUrl(file: PreviewFile): { url: string; dispose: () => void }
     const url = URL.createObjectURL(file.blob);
     return { url, dispose: () => URL.revokeObjectURL(url) };
   }
-  return { url: convertFileSrc(file.path!), dispose: () => {} };
+  const url = convertFileSrc(file.path!);
+  return {
+    url: file.revision ? `${url}?v=${encodeURIComponent(file.revision)}` : url,
+    dispose: () => {},
+  };
 }
 export async function openDefault(file: PreviewFile) {
   if (file.path) await invoke('open_default', { path: file.path });
